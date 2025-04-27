@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UShare</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 40% 20% 40%;
+        }
+
+        .left, .right {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .left {
+            background-color: #e3f2fd;  /* 柔和的浅蓝色 */
+        }
+        .right {
+            background-color: #e8f5e9;  /* 柔和的浅绿色 */
+        }
+
+        .middle {
+            background-color: lightgray;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mid-left {
+            background-color: #e3f2fd;  /* 柔和的浅蓝色 */
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            clip-path: polygon(0 0, 100% 0, 0 100%);
+        }
+        .mid-right {
+            background-color: #e8f5e9;  /* 柔和的浅绿色 */
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            clip-path: polygon(100% 0, 100% 100%, 0 100%);
+        }
+
+        .upload-area {
+            background-color: #BBDEFB;  /* 更明显的浅蓝色（Material Blue 100） */
+            box-shadow: inset 0 0 15px rgba(33, 150, 243, 0.15);
+            padding: 30px;
+            border-radius: 15px;
+            width: 70%;
+            margin: 20px 0 20px 60px;
+            /*todo margin 不用 px*/
+        }
+
+        .download-area {
+            background-color: #C8E6C9;  /* 更明显的浅绿色（Material Green 100） */
+            box-shadow: inset 0 0 15px rgba(56, 142, 60, 0.15);
+            padding: 30px;
+            border-radius: 15px;
+            width: 70%;
+            margin: 20px 60px 20px 0;
+            /*todo margin 不用 px*/
+        }
+
+        .file-input {
+            margin: 20px 0;
+            display: none;
+        }
+
+        .custom-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .custom-button:hover {
+            background-color: #45a049;
+        }
+
+        #selected-file {
+            margin: 10px 0;
+            color: #333;
+        }
+
+        .download-input {
+            padding: 10px;
+            margin: 20px 0;
+            width: 200px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .clear-button {
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: transparent;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .clear-button:hover {
+            background-color: lightcoral;
+        }
+    </style>
+</head>
+<body>
+<div class="left">
+    <div class="upload-area">
+        <h2>上传文件</h2>
+        <input type="file" id="real-file-input" class="file-input" />
+        <button type="button" id="custom-button" class="custom-button" onclick="handleFileSelect()">
+            选择文件
+        </button>
+        <div id="selected-file"></div>
+    </div>
+</div>
+
+<div class="middle">
+    <div class="mid-left"></div>
+    <div class="mid-right"></div>
+</div>
+
+<div class="right">
+    <div class="download-area">
+        <h2>下载文件</h2>
+        <input
+                type="text"
+                class="download-input"
+                placeholder="输入下载码"
+                id="download-code"
+        >
+        <button
+                class="custom-button"
+                onclick="handleDownload()"
+        >
+            下载文件
+        </button>
+    </div>
+</div>
+
+<script>
+    // 文件上传相关逻辑
+    function handleFileSelect() {
+        const realInput = document.getElementById('real-file-input');
+        const customButton = document.getElementById('custom-button');
+
+        if (!realInput.files.length) {
+            realInput.click();
+        } else {
+            // 执行上传操作
+            const file = realInput.files[0];
+            uploadFile(file);
+        }
+    }
+
+    function uploadFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // 这里替换为实际的上传API地址
+        fetch('https://your-upload-api.com/upload', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                alert(`上传成功！下载码: ${data.code}`);
+                resetUploader();
+            })
+            .catch(error => {
+                console.error('上传失败:', error);
+                alert('上传失败，请重试');
+            });
+    }
+
+    function resetUploader() {
+        const realInput = document.getElementById('real-file-input');
+        const customButton = document.getElementById('custom-button');
+        realInput.value = '';
+        customButton.textContent = '选择文件';
+        document.getElementById('selected-file').textContent = '';
+    }
+
+    // 文件下载相关逻辑
+    function handleDownload() {
+        const code = document.getElementById('download-code').value;
+        if (!code) {
+            alert('请输入下载码');
+            return;
+        }
+
+        // 这里替换为实际的下载API地址
+        window.location.href = `https://your-download-api.com/download?code=${code}`;
+    }
+
+    // 修改文件选择的事件监听
+    document.getElementById('real-file-input').addEventListener('change', function(e) {
+        const customButton = document.getElementById('custom-button');
+        const fileInfo = document.getElementById('selected-file');
+
+        if (this.files.length > 0) {
+            customButton.textContent = '确认上传';
+            // 添加带清除按钮的文件显示
+            fileInfo.innerHTML = `
+                    <div class="file-item">
+                        <span class="clear-button" onclick="clearFileSelection()">×</span>
+                        <span>${this.files[0].name}</span>
+                    </div>
+                `;
+        }
+    });
+
+    // 新增清除文件函数
+    function clearFileSelection() {
+        const realInput = document.getElementById('real-file-input');
+        const customButton = document.getElementById('custom-button');
+        const fileInfo = document.getElementById('selected-file');
+
+        realInput.value = '';
+        customButton.textContent = '选择文件';
+        fileInfo.innerHTML = '';
+    }
+</script>
+</body>
+</html>
