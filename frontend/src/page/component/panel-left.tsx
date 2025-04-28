@@ -54,7 +54,7 @@ export const PanelLeft = () => {
     }
 
     function onFileUpload() {
-        console.log('[D] onFileUpload: upload file =', file)
+        console.log(`[D] onFileUpload: upload file = ${file?.name}, size = ${file?.size}`, file)
     }
 
     function onFileClean() {
