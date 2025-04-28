@@ -1,8 +1,9 @@
 package opt
 
 type config struct {
-	Debug   bool
-	Address string
+	Debug    bool
+	Address  string
+	DataPath string
 }
 
 var (

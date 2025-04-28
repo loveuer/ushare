@@ -5,6 +5,7 @@ import (
 	"github.com/loveuer/nf"
 	"github.com/loveuer/nf/nft/log"
 	"github.com/loveuer/nf/nft/tool"
+	"github.com/loveuer/ushare/internal/handler"
 	"github.com/loveuer/ushare/internal/opt"
 	"net"
 	"net/http"
@@ -16,6 +17,8 @@ func Start(ctx context.Context) <-chan struct{} {
 	app.Get("/api/available", func(c *nf.Ctx) error {
 		return c.SendStatus(http.StatusOK)
 	})
+
+	app.Get("/api/share/fetch", handler.Fetch())
 
 	ready := make(chan struct{})
 	ln, err := net.Listen("tcp", opt.Cfg.Address)
