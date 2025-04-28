@@ -5,6 +5,7 @@ import (
 	"github.com/loveuer/nf"
 	"github.com/loveuer/nf/nft/log"
 	"github.com/loveuer/nf/nft/tool"
+	"github.com/loveuer/ushare/internal/handler"
 	"github.com/loveuer/ushare/internal/opt"
 	"net"
 	"net/http"
@@ -16,6 +17,10 @@ func Start(ctx context.Context) <-chan struct{} {
 	app.Get("/api/available", func(c *nf.Ctx) error {
 		return c.SendStatus(http.StatusOK)
 	})
+
+	app.Get("/api/share/:code", handler.Fetch())
+	app.Put("/api/share/:filename", handler.ShareNew()) // 获取上传 code, 分片大小
+	app.Post("/api/share/:code", handler.ShareUpload()) // 分片上传接口
 
 	ready := make(chan struct{})
 	ln, err := net.Listen("tcp", opt.Cfg.Address)
