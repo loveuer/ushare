@@ -3,7 +3,8 @@ package opt
 import "path/filepath"
 
 const (
-	Meta = ".meta."
+	Meta       = ".meta."
+	HeaderSize = "X-File-Size"
 )
 
 func FilePath(code string) string {

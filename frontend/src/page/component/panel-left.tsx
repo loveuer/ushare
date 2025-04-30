@@ -2,6 +2,7 @@ import {createUseStyles} from "react-jss";
 import {UButton} from "../../component/button/u-button.tsx";
 import React from "react";
 import {useStore} from "../../store/share.ts";
+import {message} from "../../component/message/u-message.tsx";
 
 const useStyle = createUseStyles({
     container: {
@@ -39,6 +40,11 @@ const useStyle = createUseStyles({
         '&:hover': {}
     }
 })
+
+interface RespNew {
+    code: string
+}
+
 export const PanelLeft = () => {
     const style = useStyle()
     const {file, setFile} = useStore()
@@ -53,8 +59,60 @@ export const PanelLeft = () => {
         setFile(e.currentTarget.files ? e.currentTarget.files[0] : null)
     }
 
-    function onFileUpload() {
-        console.log(`[D] onFileUpload: upload file = ${file?.name}, size = ${file?.size}`, file)
+    async function onFileUpload() {
+        if (!file) {
+            return
+        }
+
+        console.log(`[D] onFileUpload: upload file = ${file.name}, size = ${file.size}`, file)
+
+        let res1 = await fetch(`/api/share/${file.name}`, {
+            method: "PUT",
+            headers: {"X-File-Size": file.size.toString()}
+        })
+        let j1 = await res1.json() as RespNew
+        console.log('[D] onFileUpload: json 1 =', j1)
+        if (!j1.code) {
+            return
+        }
+
+
+        // todo: for 循环上传文件分片直到上传完成
+
+        // 2. 分片上传配置
+        const CHUNK_SIZE = 1024 * 1024 // 1MB分片
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+        const code = j1.code
+
+        // 3. 循环上传所有分片
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+            const start = chunkIndex * CHUNK_SIZE
+            const end = Math.min(start + CHUNK_SIZE, file.size)
+            const chunk = file.slice(start, end)
+
+            // 4. 构造Range头（bytes=start-end）
+            const rangeHeader = `bytes=${start}-${end - 1}` // end-1因为Range是闭区间
+
+            // 5. 上传分片
+            const res = await fetch(`/api/share/${code}`, {
+                method: "POST",
+                headers: {
+                    "Range": rangeHeader,
+                    "Content-Type": "application/octet-stream" // 二进制流类型
+                },
+                body: chunk
+            })
+
+            if (!res.ok) {
+                const err = await res.text()
+                throw new Error(`分片 ${chunkIndex} 上传失败: ${err}`)
+            }
+
+            console.log(`[D] 分片进度: ${chunkIndex + 1}/${totalChunks}`,
+                `(${Math.round((chunkIndex + 1)/totalChunks*100)}%)`)
+        }
+
+        console.log('[D] 所有分片上传完成')
     }
 
     function onFileClean() {

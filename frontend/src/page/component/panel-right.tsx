@@ -41,7 +41,7 @@ export const PanelRight = () => {
     }
 
     async function onFetchFile() {
-        const url = `/api/share/fetch?code=${code}`
+        const url = `/api/share/${code}`
         console.log('[D] onFetchFile: url =', url)
         const link = document.createElement('a');
         link.href = url;
