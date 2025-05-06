@@ -1,5 +1,5 @@
 import {createRoot} from "react-dom/client";
-import {useEffect, useState} from "react";
+import {useState} from "react";
 import {createUseStyles} from "react-jss";
 
 const useStyle = createUseStyles({
