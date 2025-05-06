@@ -1,10 +1,11 @@
 import {createUseStyles} from "react-jss";
 import {UButton} from "../../component/button/u-button.tsx";
-import React from "react";
+import React, {useState} from "react";
 import {useStore} from "../../store/share.ts";
 import {message} from "../../component/message/u-message.tsx";
+import {useFileUpload} from "../../api/upload.ts";
 
-const useStyle = createUseStyles({
+const useUploadStyle = createUseStyles({
     container: {
         backgroundColor: "#e3f2fd",
         display: "flex",
@@ -41,13 +42,93 @@ const useStyle = createUseStyles({
     }
 })
 
-interface RespNew {
-    code: string
-}
+const useShowStyle = createUseStyles({
+    container: {
+        backgroundColor: "#e3f2fd",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        position: "relative", // 为关闭按钮提供定位基准
+    },
+    title: {
+        color: "#2c9678",
+        marginTop: 0,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    form: {
+        backgroundColor: "#C8E6C9",
+        boxShadow: "inset 0 0 15px rgba(56, 142, 60, 0.15)",
+        padding: "30px",
+        borderRadius: "15px",
+        width: "70%",
+        margin: "20px 60px 20px 0",
+        position: "relative",
+    },
+    closeButton: {
+        position: "absolute",
+        top: "10px",
+        right: "10px",
+        background: "transparent",
+        color: "white",
+        border: "none",
+        borderRadius: "50%",
+        width: "24px",
+        height: "24px",
+        cursor: "pointer",
+        "&:hover": {
+            // background: "#cc0000",
+            boxShadow:  "20px 20px 60px #fff, -20px -20px 60px #fff",
+            // boxShadow:  "20px 20px 60px #eee",
+        },
+    },
+    codeWrapper: {
+        backgroundColor: "rgba(255,255,255,0.8)",
+        padding: "0 15px",
+        borderRadius: "8px",
+        margin: "15px 0",
+        overflowX: "auto",
+    },
+    pre: {
+        display: 'flex',
+        flexDirection: 'row',
+        color: 'black',
+        alignItems: 'center',
+        height: '24px',
+        "& > code": {
+            marginLeft: "0",
+        }
+    },
+    copyButton: {
+        marginLeft: 'auto',
+        background: "#2c9678",
+        color: "white",
+        border: "none",
+        padding: "8px 16px",
+        borderRadius: "4px",
+        cursor: "pointer",
+        transition: "background 0.3s",
+        "&:hover": {
+            background: "#1f6d5a",
+        },
+    },
+});
 
 export const PanelLeft = () => {
-    const style = useStyle()
+    const [code, set_code] = useState("")
+
+    if (code) {
+        return <PanelLeftShow code={code} set_code={set_code} />
+    }
+
+    return <PanelLeftUpload  set_code={set_code}/>
+};
+
+const PanelLeftUpload: React.FC<{ set_code: (code:string) => void }> = ({set_code}) => {
+    const style = useUploadStyle()
     const {file, setFile} = useStore()
+    const {uploadFile, progress, loading} = useFileUpload();
 
     function onFileSelect() {
         // @ts-ignore
@@ -64,55 +145,8 @@ export const PanelLeft = () => {
             return
         }
 
-        console.log(`[D] onFileUpload: upload file = ${file.name}, size = ${file.size}`, file)
-
-        let res1 = await fetch(`/api/share/${file.name}`, {
-            method: "PUT",
-            headers: {"X-File-Size": file.size.toString()}
-        })
-        let j1 = await res1.json() as RespNew
-        console.log('[D] onFileUpload: json 1 =', j1)
-        if (!j1.code) {
-            return
-        }
-
-
-        // todo: for 循环上传文件分片直到上传完成
-
-        // 2. 分片上传配置
-        const CHUNK_SIZE = 1024 * 1024 // 1MB分片
-        const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
-        const code = j1.code
-
-        // 3. 循环上传所有分片
-        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-            const start = chunkIndex * CHUNK_SIZE
-            const end = Math.min(start + CHUNK_SIZE, file.size)
-            const chunk = file.slice(start, end)
-
-            // 4. 构造Range头（bytes=start-end）
-            const rangeHeader = `bytes=${start}-${end - 1}` // end-1因为Range是闭区间
-
-            // 5. 上传分片
-            const res = await fetch(`/api/share/${code}`, {
-                method: "POST",
-                headers: {
-                    "Range": rangeHeader,
-                    "Content-Type": "application/octet-stream" // 二进制流类型
-                },
-                body: chunk
-            })
-
-            if (!res.ok) {
-                const err = await res.text()
-                throw new Error(`分片 ${chunkIndex} 上传失败: ${err}`)
-            }
-
-            console.log(`[D] 分片进度: ${chunkIndex + 1}/${totalChunks}`,
-                `(${Math.round((chunkIndex + 1)/totalChunks*100)}%)`)
-        }
-
-        console.log('[D] 所有分片上传完成')
+        const code = await uploadFile(file)
+        set_code(code)
     }
 
     function onFileClean() {
@@ -123,12 +157,16 @@ export const PanelLeft = () => {
         <div className={style.form}>
             <h2 className={style.title}>上传文件</h2>
             {
-                !file &&
+                !file && !loading &&
                 <UButton onClick={onFileSelect}>选择文件</UButton>
             }
             {
-                file &&
+                file && !loading &&
                 <UButton onClick={onFileUpload}>上传文件</UButton>
+            }
+            {
+                loading &&
+                <UButton process={progress} loading={loading}>上传中</UButton>
             }
             <input type="file" className={style.file} id="real-file-input" onChange={onFileChange}/>
             {
@@ -140,4 +178,44 @@ export const PanelLeft = () => {
             }
         </div>
     </div>
+}
+
+const PanelLeftShow: React.FC<{ code: string; set_code: (code: string) => void }> = ({ code, set_code }) => {
+    const classes = useShowStyle();
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(code);
+            message.success("复制成功！");
+        } catch (err) {
+            message.warning("复制失败，请手动选择文本复制");
+        }
+    };
+
+    return (
+        <div className={classes.container}>
+
+            <div className={classes.form}>
+                <button
+                    className={classes.closeButton}
+                    onClick={() => set_code('')}
+                    aria-label="关闭"
+                >
+                    ×
+                </button>
+                <h2 className={classes.title}>
+                    上传成功!
+                </h2>
+
+                <div className={classes.codeWrapper}>
+                    <pre className={classes.pre}>
+                        <code>{code}</code>
+                        <button className={classes.copyButton} onClick={handleCopy}>
+                        一键复制
+                    </button>
+                    </pre>
+                </div>
+            </div>
+        </div>
+    );
 };

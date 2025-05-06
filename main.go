@@ -13,12 +13,13 @@ import (
 
 func init() {
 	flag.BoolVar(&opt.Cfg.Debug, "debug", false, "debug mode")
-	flag.StringVar(&opt.Cfg.Address, "address", "0.0.0.0:80", "")
+	flag.StringVar(&opt.Cfg.Address, "address", "0.0.0.0:9119", "")
 	flag.StringVar(&opt.Cfg.DataPath, "data", "/data", "")
 	flag.Parse()
 
 	if opt.Cfg.Debug {
 		log.SetLogLevel(log.LogLevelDebug)
+		log.Debug("start server with debug mode")
 	}
 }
 

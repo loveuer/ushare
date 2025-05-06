@@ -5,6 +5,7 @@ import "path/filepath"
 const (
 	Meta       = ".meta."
 	HeaderSize = "X-File-Size"
+	CodeLength = 8
 )
 
 func FilePath(code string) string {

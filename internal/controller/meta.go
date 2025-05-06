@@ -40,11 +40,11 @@ var (
 	MetaManager = &meta{m: make(map[string]*metaInfo)}
 )
 
-const letters = "1234567890abcdefghijklmnopqrstuvwxyz"
+const letters = "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 func (m *meta) New(size int64, filename, ip string) (string, error) {
 	now := time.Now()
-	code, err := gonanoid.Generate(letters, 16)
+	code, err := gonanoid.Generate(letters, opt.CodeLength)
 	if err != nil {
 		return "", err
 	}

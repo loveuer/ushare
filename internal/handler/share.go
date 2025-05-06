@@ -73,7 +73,7 @@ func ShareUpload() nf.HandlerFunc {
 	rangeValidator := regexp.MustCompile(`^bytes=\d+-\d+$`)
 	return func(c *nf.Ctx) error {
 		code := strings.TrimSpace(c.Param("code"))
-		if len(code) != 16 {
+		if len(code) != opt.CodeLength {
 			return c.Status(http.StatusBadRequest).JSON(map[string]string{"msg": "invalid file code"})
 		}
 
