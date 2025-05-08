@@ -50,6 +50,10 @@ func Fetch() nf.HandlerFunc {
 func ShareNew() nf.HandlerFunc {
 	return func(c *nf.Ctx) error {
 
+		if opt.Cfg.Auth {
+			return c.SendStatus(http.StatusUnauthorized)
+		}
+
 		filename := strings.TrimSpace(c.Param("filename"))
 		if filename == "" {
 			return c.Status(http.StatusBadRequest).JSON(map[string]string{"msg": "filename required"})
