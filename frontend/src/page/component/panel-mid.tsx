@@ -2,6 +2,7 @@ import {createUseStyles} from "react-jss";
 
 const useStyle = createUseStyles({
     container: {
+        backgroundColor: 'lightgray',
         position: "relative",
         overflow: "hidden",
     },

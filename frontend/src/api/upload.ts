@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+
 interface UploadRes {
     code: string
 }
@@ -25,6 +26,12 @@ export const useFileUpload = () => {
             });
 
             if (!res1.ok) {
+                console.log(`[D] upload: put file not ok, status = ${res1.status}, res = ${await res1.text()}`)
+                if (res1.status === 401) {
+                    window.location.href = "/login?next=/share"
+                    return ""
+                }
+
                 throw new Error("上传失败<1>");
             }
 
