@@ -33,12 +33,7 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/workspace \
             -v $(pwd)/.docker.config.json:/kaniko/.docker/config.json:ro \
-            gcr.io/kaniko-project/executor:latest \
-            executor \
-            --dockerfile /workspace/Dockerfile \
-            --destination "gitea.loveuer.com/loveuer/build/ushare:${{ gitea.ref_name }}" \
-            --context dir:///workspace/ \
-            --single-snapshot
+            gcr.io/kaniko-project/executor:latest --dockerfile /workspace/Dockerfile --destination "gitea.loveuer.com/loveuer/build/ushare:${{ gitea.ref_name }}" --context dir:///workspace/ --single-snapshot
 
   clean:
     if: always()
