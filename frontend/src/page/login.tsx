@@ -89,7 +89,7 @@ export const Login: React.FC = () => {
                     <input placeholder={"请输入账号"}/>
                 </div>
                 <div className={classes.input}>
-                    <input placeholder={"请输入密码"}/>
+                    <input placeholder={"请输入密码"} type={"password"} />
                 </div>
                 <div className={classes.button}>
                     <button>登录</button>

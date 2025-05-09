@@ -109,8 +109,12 @@ func (m *meta) Start(ctx context.Context) {
 				for code, info := range m.m {
 					if now.Sub(info.last) > 1*time.Minute {
 						m.Lock()
-						info.f.Close()
-						os.RemoveAll(opt.FilePath(code))
+						if err := info.f.Close(); err != nil {
+							log.Warn("handler.Meta: [timer] close file failed, file = %s, err = %s", opt.FilePath(code), err.Error())
+						}
+						if err := os.RemoveAll(opt.FilePath(code)); err != nil {
+							log.Warn("handler.Meta: [timer] remove file failed, file = %s, err = %s", opt.FilePath(code), err.Error())
+						}
 						delete(m.m, code)
 						m.Unlock()
 						log.Warn("MetaController: code timeout removed, code = %s", code)
