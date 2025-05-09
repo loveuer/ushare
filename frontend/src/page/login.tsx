@@ -1,6 +1,7 @@
-import React from "react";
-import {createUseStyles} from "react-jss";
-import {CloudBackground} from "../component/fluid/cloud.tsx";
+import React, { useState } from "react";
+import { createUseStyles } from "react-jss";
+import { CloudBackground } from "../component/fluid/cloud.tsx";
+import {useAuth} from "../api/auth.ts";
 
 const useClass = createUseStyles({
     container: {
@@ -75,24 +76,106 @@ const useClass = createUseStyles({
             },
         },
     },
+
+    inputContainer: {
+        position: 'relative',
+        width: '100%',
+        marginTop: '20px',
+    },
+    inputField: {
+        width: "calc(100% - 52px)",
+        padding: "12px 35px 12px 15px",
+        border: "1px solid #ddd",
+        borderRadius: "6px",
+        fontSize: "16px",
+        transition: "border-color 0.3s",
+        "&:focus": {
+            outline: "none",
+            borderColor: "#1a73e8",
+            boxShadow: "0 0 0 2px rgba(26, 115, 232, 0.2)",
+        },
+        "&:hover": {
+            borderColor: "#1a73e8",
+        }
+    },
+    iconButton: {
+        position: 'absolute',
+        right: '10px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        color: '#666',
+        "&:hover": {
+            color: '#333',
+        }
+    }
 })
 
 export const Login: React.FC = () => {
     const classes = useClass()
+    const {login} = useAuth()
+    const [username, setUsername] = useState("")
+    const [password, setPassword] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
+
+    const onLogin = async () => {
+        try {
+            await login(username, password)
+            window.location.href = "/"
+        } catch (_e) {
+            
+        }
+    }
 
     return <div className={classes.container}>
         <CloudBackground/>
         <div className={classes.login_container}>
             <div className={classes.form}>
                 <h2>UShare</h2>
-                <div className={classes.input}>
-                    <input placeholder={"请输入账号"}/>
+
+                {/* 用户名输入框 */}
+                <div className={classes.inputContainer}>
+                    <input
+                        className={classes.inputField}
+                        placeholder="请输入账号"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                    />
+                    {username && (
+                        <button
+                            className={classes.iconButton}
+                            onClick={() => setUsername("")}
+                            style={{ right: '10px', fontSize: '16px' }}
+                        >
+                            ×
+                        </button>
+                    )}
                 </div>
-                <div className={classes.input}>
-                    <input placeholder={"请输入密码"} type={"password"} />
+
+                {/* 密码输入框 */}
+                <div className={classes.inputContainer}>
+                    <input
+                        className={classes.inputField}
+                        placeholder="请输入密码"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <button
+                        className={classes.iconButton}
+                        onMouseDown={() => setShowPassword(true)}
+                        onMouseUp={() => setShowPassword(false)}
+                        onMouseLeave={() => setShowPassword(false)}
+                        style={{ right: '10px', fontSize: '12px' }}
+                    >
+                        {showPassword ? "👁" : "👁"}
+                    </button>
                 </div>
+
                 <div className={classes.button}>
-                    <button>登录</button>
+                    <button onClick={onLogin}>登录</button>
                 </div>
             </div>
         </div>

@@ -9,7 +9,11 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:9119',
         changeOrigin: true
-      }
+      },
+      '/ushare': {
+        target: 'http://127.0.0.1:9119',
+        changeOrigin: true
+      },
     }
   }
 })

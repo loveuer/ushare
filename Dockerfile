@@ -32,4 +32,4 @@ COPY deployment/nginx.conf /etc/nginx/conf.d
 EXPOSE 80
 
 # 启动服务
-CMD sh -c "ushare & nginx -g 'daemon off;'"
+CMD ["sh", "-c", "nginx -g 'daemon off;' & exec ushare"]

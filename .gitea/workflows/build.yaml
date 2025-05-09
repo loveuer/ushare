@@ -1,0 +1,59 @@
+run-name: build ushare
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build ushare:
+    runs-on: tencent-sg
+    steps:
+      - name: prepare enviroment
+        uses: actions/checkout@v4
+
+      - name: prints date
+        run: date '+%Y-%m-%dT%H:%M:%S'
+
+      - name: print operator
+        run: whoami
+
+      - name: print tag name
+        run: echo "Tag name = ${{ gitea.ref_name }}"
+
+      - name: build prepare config
+        run: |
+          cat << EOF > .docker.config.json
+          ${{ secrets.DOCKER_CONFIG }}
+          EOF
+
+      - name: print work dir and files
+        run: pwd & ls -alsh .
+
+      - name: build image by docker build
+        run: docker build -t gitea.loveuer.com/loveuer/build/ushare:${{ gitea.ref_name }} .
+
+      - name: login repository
+        run: echo ${{ secrets.DOCKER_REPOSITORY_PASSWORD }} | docker login --username loveuer --password-stdin gitea.loveuer.com/loveuer
+
+      - name: push image to repository
+        run: docker push gitea.loveuer.com/loveuer/build/ushare:${{ gitea.ref_name }}
+
+#      - name: build by kaniko in docker
+#        run: |
+#          docker run --rm -v $(pwd):/workspace \
+#            -v $(pwd)/.docker.config.json:/kaniko/.docker/config.json:ro \
+#            alpine:latest \
+#            ls -alsh /workspace
+#            gcr.io/kaniko-project/executor:latest \
+#            --dockerfile=/workspace/Dockerfile \
+#            --context=/workspace \
+#            --destination=gitea.loveuer.com/loveuer/build/u-api:${{ gitea.ref_name }} \
+#            --single-snapshot
+
+  clean:
+    if: always()
+    runs-on: tencent-sg
+    steps:
+      - name: clean docker config
+        run: |
+          rm -rf .docker.config.json
