@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/loveuer/nf/nft/log"
+	"github.com/loveuer/ushare/internal/model"
 	"github.com/loveuer/ushare/internal/opt"
 	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/spf13/viper"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -19,12 +23,12 @@ type metaInfo struct {
 	last   time.Time
 	size   int64
 	cursor int64
-	ip     string
+	user   string
 }
 
 func (m *metaInfo) generateMeta(code string) error {
-	content := fmt.Sprintf("filename=%s\ncreated_at=%d\nsize=%d\nuploader_ip=%s",
-		m.name, m.create.UnixMilli(), m.size, m.ip,
+	content := fmt.Sprintf("filename=%s\ncreated_at=%d\nsize=%d\nuploader=%s",
+		m.name, m.create.UnixMilli(), m.size, m.user,
 	)
 
 	return os.WriteFile(opt.MetaPath(code), []byte(content), 0644)
@@ -62,7 +66,7 @@ func (m *meta) New(size int64, filename, ip string) (string, error) {
 	m.Lock()
 	defer m.Unlock()
 
-	m.m[code] = &metaInfo{f: f, name: filename, last: now, size: size, cursor: 0, create: now, ip: ip}
+	m.m[code] = &metaInfo{f: f, name: filename, last: now, size: size, cursor: 0, create: now, user: ip}
 
 	return code, nil
 }
@@ -100,6 +104,7 @@ func (m *meta) Start(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
 	m.ctx = ctx
 
+	// 清理 2 分钟内没有继续上传的 part
 	go func() {
 		for {
 			select {
@@ -107,7 +112,7 @@ func (m *meta) Start(ctx context.Context) {
 				return
 			case now := <-ticker.C:
 				for code, info := range m.m {
-					if now.Sub(info.last) > 1*time.Minute {
+					if now.Sub(info.last) > 2*time.Minute {
 						m.Lock()
 						if err := info.f.Close(); err != nil {
 							log.Warn("handler.Meta: [timer] close file failed, file = %s, err = %s", opt.FilePath(code), err.Error())
@@ -120,6 +125,59 @@ func (m *meta) Start(ctx context.Context) {
 						log.Warn("MetaController: code timeout removed, code = %s", code)
 					}
 				}
+			}
+		}
+	}()
+
+	// 清理一天前的文件
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case now := <-ticker.C:
+				_ = filepath.Walk(opt.Cfg.DataPath, func(path string, info os.FileInfo, err error) error {
+					if info.IsDir() {
+						return nil
+					}
+
+					name := filepath.Base(info.Name())
+					if !strings.HasPrefix(name, ".meta.") {
+						return nil
+					}
+
+					viper.SetConfigFile(path)
+					viper.SetConfigType("env")
+					if err = viper.ReadInConfig(); err != nil {
+						// todo log
+						return nil
+					}
+
+					mi := new(model.Meta)
+
+					if err = viper.Unmarshal(mi); err != nil {
+						// todo log
+						return nil
+					}
+
+					code := strings.TrimPrefix(name, ".meta.")
+
+					if now.Sub(time.UnixMilli(mi.CreatedAt)) > 24*time.Hour {
+
+						log.Debug("controller.meta: file out of date, code = %s, user_key = %s", code, mi.Uploader)
+
+						os.RemoveAll(opt.FilePath(code))
+						os.RemoveAll(path)
+
+						m.Lock()
+						delete(m.m, code)
+						m.Unlock()
+					}
+
+					return nil
+				})
 			}
 		}
 	}()

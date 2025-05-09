@@ -18,9 +18,10 @@ func Start(ctx context.Context) <-chan struct{} {
 		return c.SendStatus(http.StatusOK)
 	})
 
-	app.Get("/api/share/:code", handler.Fetch())
-	app.Put("/api/share/:filename", handler.ShareNew()) // 获取上传 code, 分片大小
-	app.Post("/api/share/:code", handler.ShareUpload()) // 分片上传接口
+	app.Get("/ushare/:code", handler.Fetch())
+	app.Put("/api/ushare/:filename", handler.AuthVerify(), handler.ShareNew()) // 获取上传 code, 分片大小
+	app.Post("/api/ushare/:code", handler.ShareUpload())                       // 分片上传接口
+	app.Post("/api/uauth/login", handler.AuthLogin())
 
 	ready := make(chan struct{})
 	ln, err := net.Listen("tcp", opt.Cfg.Address)

@@ -17,7 +17,7 @@ export const useFileUpload = () => {
 
         try {
             console.log(`[D] api.Upload: upload file = ${file.name}, size = ${file.size}`, file);
-            const url = `/api/share/${file.name}`;
+            const url = `/api/ushare/${file.name}`;
 
             // 1. 初始化上传
             const res1 = await fetch(url, {
@@ -51,7 +51,7 @@ export const useFileUpload = () => {
                 const end = Math.min(start + CHUNK_SIZE, file.size);
                 const chunk = file.slice(start, end);
 
-                const res = await fetch(`/api/share/${code}`, {
+                const res = await fetch(`/api/ushare/${code}`, {
                     method: "POST",
                     headers: {
                         "Range": `bytes=${start}-${end - 1}`,

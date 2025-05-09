@@ -15,7 +15,7 @@ func init() {
 	flag.BoolVar(&opt.Cfg.Debug, "debug", false, "debug mode")
 	flag.StringVar(&opt.Cfg.Address, "address", "0.0.0.0:9119", "")
 	flag.StringVar(&opt.Cfg.DataPath, "data", "/data", "")
-	flag.BoolVar(&opt.Cfg.Auth, "auth", false, "upload need login")
+	flag.StringVar(&opt.Cfg.Auth, "auth", "", "auth required(admin, password)")
 	flag.Parse()
 
 	if opt.Cfg.Debug {
@@ -28,6 +28,8 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
+	opt.Init(ctx)
+	controller.UserManager.Start(ctx)
 	controller.MetaManager.Start(ctx)
 	api.Start(ctx)
 
