@@ -36,7 +36,7 @@ jobs:
             gcr.io/kaniko-project/executor:latest \
             '-f /workspace/Dockerfile' \
             '-d "gitea.loveuer.com/loveuer/build/ushare:${{ gitea.ref_name }}"' \
-            '-c dir://workspace/' \
+            '-c "dir://workspace/"' \
             '--single-snapshot'
 
   clean:
