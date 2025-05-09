@@ -34,9 +34,7 @@ jobs:
           docker run --rm -v $(pwd):/workspace \
             -v $(pwd)/.docker.config.json:/kaniko/.docker/config.json:ro \
             gcr.io/kaniko-project/executor:latest \
-            '-f /workspace/Dockerfile' \
             '-d "gitea.loveuer.com/loveuer/build/ushare:${{ gitea.ref_name }}"' \
-            '-c "dir://workspace/"' \
             '--single-snapshot'
 
   clean:
