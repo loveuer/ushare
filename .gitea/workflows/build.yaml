@@ -34,7 +34,7 @@ jobs:
         with:
           registry: gcr.io
           image: alpine:latest
-          options: -v $(pwd):/workspace -v $(pwd)/.docker.config.json:/kaniko/.docker/config.json:ro
+          options: -v ${{ gitea.workspace }}:/workspace -v ${{ gitea.workspace }}/.docker.config.json:/kaniko/.docker/config.json:ro
           run: |
             ls -alsh /workspace
 
