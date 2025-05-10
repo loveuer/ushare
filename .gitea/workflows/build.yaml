@@ -31,7 +31,13 @@ jobs:
 
       - name: build by kaniko in docker
         run: |
-          docker run --rm -v $(pwd):/workspace -v $(pwd)/.docker.config.json:/kaniko/.docker/config.json:ro gcr.io/kaniko-project/executor:latest 'executor --context dir:///workspace/ --dockerfile /workspace/Dockerfile --destination "gitea.loveuer.com/loveuer/build/ushare:${{ gitea.ref_name }}" --single-snapshot'
+          docker run --rm -v $(pwd):/workspace \
+            -v $(pwd)/.docker.config.json:/kaniko/.docker/config.json:ro \
+            gcr.io/kaniko-project/executor:latest \
+            --dockerfile=/workspace/Dockerfile \
+            --context=/workspace \
+            --destination=gitea.loveuer.com/loveuer/build/u-api:${{ gitea.ref_name }} \
+            --single-snapshot
 
   clean:
     if: always()
