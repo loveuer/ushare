@@ -5,7 +5,7 @@ on:
       - 'v*'
 
 jobs:
-  build and run u-api:
+  build ushare:
     runs-on: tencent-sg
     steps:
       - name: prepare enviroment
@@ -29,12 +29,21 @@ jobs:
       - name: print work dir and files
         run: pwd & ls -alsh .
 
-      - name: build by kaniko in docker
-        run: |
-          docker run --rm -v $(pwd):/workspace \
-            -v $(pwd)/.docker.config.json:/kaniko/.docker/config.json:ro \
-            alpine:latest \
+      - name: build image
+        uses: https://github.com/addnab/docker-run-action@v3
+        with:
+          registry: gcr.io
+          image: alpine:latest
+          options: -v $(pwd):/workspace -v $(pwd)/.docker.config.json:/kaniko/.docker/config.json:ro
+          run: |
             ls -alsh /workspace
+
+#      - name: build by kaniko in docker
+#        run: |
+#          docker run --rm -v $(pwd):/workspace \
+#            -v $(pwd)/.docker.config.json:/kaniko/.docker/config.json:ro \
+#            alpine:latest \
+#            ls -alsh /workspace
 #            gcr.io/kaniko-project/executor:latest \
 #            --dockerfile=/workspace/Dockerfile \
 #            --context=/workspace \
