@@ -17,9 +17,6 @@ jobs:
       - name: print operator
         run: whoami
 
-      - name: print work dir and files
-        run: pwd & ls -alsh .
-
       - name: print tag name
         run: echo "Tag name = ${{ gitea.ref_name }}"
 
@@ -29,16 +26,12 @@ jobs:
           ${{ secrets.DOCKER_CONFIG }}
           EOF
 
+      - name: print work dir and files
+        run: pwd & ls -alsh .
+
       - name: build by kaniko in docker
         run: |
-          docker version
-#        run: |
-#          docker run --rm -v $(pwd):/workspace \
-#            -v $(pwd)/.docker.config.json:/kaniko/.docker/config.json:ro \
-#            gcr.io/kaniko-project/executor:latest \
-#            '-f /workspace/Dockerfile' \
-#            '-d "gitea.loveuer.com/loveuer/build/ushare:${{ gitea.ref_name }}"' \
-#            '--single-snapshot'
+          docker run --rm -v $(pwd):/workspace -v $(pwd)/.docker.config.json:/kaniko/.docker/config.json:ro gcr.io/kaniko-project/executor:latest '-c dir:///workspace/ -f /workspace/Dockerfile -d "gitea.loveuer.com/loveuer/build/ushare:${{ gitea.ref_name }}" --single-snapshot'
 
   clean:
     if: always()
