@@ -32,6 +32,9 @@ jobs:
       - name: build image by docker build
         run: docker build -t gitea.loveuer.com/loveuer/build/u-api:${{ gitea.ref_name }} .
 
+      - name: login repository
+        run: echo ${{ secrets.DOCKER_REPOSITORY_PASSWORD }} | docker login --username loveuer --password-stdin
+
       - name: push image to repository
         run: docker push gitea.loveuer.com/loveuer/build/u-api:${{ gitea.ref_name }}
 
