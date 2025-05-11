@@ -33,7 +33,7 @@ jobs:
         run: docker build -t gitea.loveuer.com/loveuer/build/u-api:${{ gitea.ref_name }} .
 
       - name: push image to repository
-        run: docker images
+        run: docker push gitea.loveuer.com/loveuer/build/u-api:${{ gitea.ref_name }}
 
 #      - name: build by kaniko in docker
 #        run: |
