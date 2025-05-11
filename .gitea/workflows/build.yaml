@@ -33,7 +33,7 @@ jobs:
         run: docker build -t gitea.loveuer.com/loveuer/build/u-api:${{ gitea.ref_name }} .
 
       - name: login repository
-        run: echo ${{ secrets.DOCKER_REPOSITORY_PASSWORD }} | docker login --username loveuer --password-stdin
+        run: echo ${{ secrets.DOCKER_REPOSITORY_PASSWORD }} | docker login --username loveuer --password-stdin gitea.loveuer.com/loveuer
 
       - name: push image to repository
         run: docker push gitea.loveuer.com/loveuer/build/u-api:${{ gitea.ref_name }}
