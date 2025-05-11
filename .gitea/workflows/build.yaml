@@ -29,14 +29,11 @@ jobs:
       - name: print work dir and files
         run: pwd & ls -alsh .
 
-      - name: build image
-        uses: https://github.com/addnab/docker-run-action@v3
-        with:
-          registry: gcr.io
-          image: alpine:latest
-          options: -v ${{ gitea.workspace }}:/workspace -v ${{ gitea.workspace }}/.docker.config.json:/kaniko/.docker/config.json:ro
-          run: |
-            ls -alsh /workspace
+      - name: build image by docker build
+        run: docker build -t gitea.loveuer.com/loveuer/build/u-api:${{ gitea.ref_name }} .
+
+      - name: push image to repository
+        run: docker images
 
 #      - name: build by kaniko in docker
 #        run: |
