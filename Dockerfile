@@ -27,9 +27,12 @@ COPY --from=backend-builder /app/ushare /usr/local/bin/ushare
 # 配置 Nginx
 RUN rm /etc/nginx/conf.d/default.conf
 COPY deployment/nginx.conf /etc/nginx/conf.d
+COPY deployment/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # 开放端口
 EXPOSE 80
 
 # 启动服务
-CMD ["sh", "-c", "nginx -g 'daemon off;' & exec ushare"]
+ENTRYPOINT ["entrypoint.sh"]

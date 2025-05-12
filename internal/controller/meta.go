@@ -104,6 +104,10 @@ func (m *meta) Start(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
 	m.ctx = ctx
 
+	if err := os.MkdirAll(opt.Cfg.DataPath, 0644); err != nil {
+		log.Fatal("controller.MetaManager.Start: mkdir datapath failed, path = %s, err = %s", opt.Cfg.DataPath, err.Error())
+	}
+
 	// 清理 2 分钟内没有继续上传的 part
 	go func() {
 		for {
