@@ -31,6 +31,7 @@ func main() {
 	opt.Init(ctx)
 	controller.UserManager.Start(ctx)
 	controller.MetaManager.Start(ctx)
+	controller.RoomController.Start(ctx)
 	api.Start(ctx)
 
 	<-ctx.Done()

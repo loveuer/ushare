@@ -23,6 +23,11 @@ func Start(ctx context.Context) <-chan struct{} {
 	app.Post("/api/ushare/:code", handler.ShareUpload())                       // 分片上传接口
 	app.Post("/api/uauth/login", handler.AuthLogin())
 
+	{
+		api := app.Group("/api/ulocal")
+		api.Get("/registry", handler.LocalRegistry())
+	}
+
 	ready := make(chan struct{})
 	ln, err := net.Listen("tcp", opt.Cfg.Address)
 	if err != nil {

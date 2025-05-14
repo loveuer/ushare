@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>柔和气泡</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background: linear-gradient(45deg, #e6e9f0, #eef1f5);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bubble {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            font-family: 'Microsoft Yahei', sans-serif;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+            animation: float 6s ease-in-out infinite;
+            /* 泡泡细节 */
+            background: radial-gradient(circle at 30% 30%,
+            rgba(255, 255, 255, 0.8) 10%,
+            rgba(255, 255, 255, 0.3) 50%,
+            transparent 100%);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            box-shadow: inset 0 -5px 15px rgba(255,255,255,0.3),
+            0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        /* 高光效果 */
+        .bubble::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            top: 15px;
+            right: 15px;
+            filter: blur(2px);
+        }
+
+        .bubble:hover {
+            transform: scale(1.05) rotate(3deg);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(3deg); }
+            66% { transform: translateY(10px) rotate(-3deg); }
+        }
+    </style>
+</head>
+<body>
+<script>
+    const prefixes = ['宁静', '温暖', '甜蜜', '柔和', '灿烂', '神秘', '清爽'];
+    const suffixes = ['梦境', '时光', '旋律', '花园', '云端', '海洋', '晨露'];
+    const existingPositions = [];
+    const BUBBLE_SIZE = 100;
+
+    // 检测碰撞
+    function checkCollision(x, y) {
+        return existingPositions.some(pos => {
+            const distance = Math.sqrt(
+                Math.pow(x - pos.x, 2) +
+                Math.pow(y - pos.y, 2)
+            );
+            return distance < BUBBLE_SIZE * 1.2;
+        });
+    }
+
+    function createBubble() {
+        let x, y;
+        let attempts = 0;
+
+        // 生成非重叠位置
+        do {
+            x = Math.random() * (window.innerWidth - BUBBLE_SIZE);
+            y = Math.random() * (window.innerHeight - BUBBLE_SIZE);
+            attempts++;
+        } while (checkCollision(x, y) && attempts < 100);
+
+        if (attempts >= 100) return;
+
+        existingPositions.push({x, y});
+
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+
+        // 随机颜色
+        const hue = Math.random() * 360;
+        bubble.style.backgroundColor = `hsla(${hue},
+                ${Math.random() * 30 + 40}%,
+                ${Math.random() * 10 + 75}%, 0.9)`;
+
+        // 随机名称
+        bubble.textContent = `${prefixes[Math.random()*prefixes.length|0]}的${suffixes[Math.random()*suffixes.length|0]}`;
+
+        // 位置和动画
+        bubble.style.left = x + 'px';
+        bubble.style.top = y + 'px';
+        bubble.style.animationDelay = Math.random() * 2 + 's';
+
+        // 点击效果
+        bubble.addEventListener('click', () => {
+            bubble.style.transition = 'transform 0.5s, opacity 0.5s';
+            bubble.style.transform = 'scale(1.5)';
+            bubble.style.opacity = '0';
+            setTimeout(() => {
+                bubble.remove();
+                existingPositions.splice(existingPositions.findIndex(
+                    pos => pos.x === x && pos.y === y), 1);
+                createBubble();
+            }, 500);
+        });
+
+        document.body.appendChild(bubble);
+    }
+
+    // 初始化15个气泡
+    for (let i = 0; i < 15; i++) createBubble();
+
+    // 自动补充气泡
+    setInterval(() => {
+        if (document.querySelectorAll('.bubble').length < 20) {
+            createBubble();
+        }
+    }, 3000);
+
+    // 窗口大小变化时重置
+    window.addEventListener('resize', () => {
+        existingPositions.length = 0;
+        document.querySelectorAll('.bubble').forEach(bubble => bubble.remove());
+        for (let i = 0; i < 15; i++) createBubble();
+    });
+</script>
+</body>
+</html>
