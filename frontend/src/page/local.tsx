@@ -1,7 +1,8 @@
 import {CloudBackground} from "../component/fluid/cloud.tsx";
-import {useEffect, useState} from "react";
+import {useEffect} from "react";
 import {createUseStyles} from "react-jss";
-import {useRoom} from "../store/ws.ts";
+import {useRTC} from "../store/rtc.ts";
+import {Client, useRoom} from "../store/local.ts";
 
 const useClass = createUseStyles({
     '@global': {
@@ -27,6 +28,12 @@ const useClass = createUseStyles({
         overflow: "hidden",
         position: "relative",
     },
+    title: {
+        width: '100%',
+        display: "flex",
+        justifyContent: "center",
+        color: '#1661ab',
+    },
     bubble: {
         position: "absolute",
         width: "100px",
@@ -50,13 +57,10 @@ const useClass = createUseStyles({
     }
 })
 
-interface Client {
+
+interface Bubble {
     id: string;
     name: string;
-}
-
-interface BubblePosition {
-    id: string;
     x: number;
     y: number;
     color: string;
@@ -66,10 +70,8 @@ interface BubblePosition {
 
 export const LocalSharing: React.FC = () => {
     const classes = useClass();
-    const [clients, setClients] = useState<Client[]>([]);
-    const [bubbles, setBubbles] = useState<BubblePosition[]>([]);
-    const {register, cleanup} = useRoom();
-    const BUBBLE_SIZE = 100;
+    const {register, enter, list, cleanup, client, clients} = useRoom();
+    const {connect, create} = useRTC();
 
     // 生成随机颜色
     const generateColor = () => {
@@ -80,131 +82,92 @@ export const LocalSharing: React.FC = () => {
     };
 
     // 防碰撞位置生成
-    const generatePosition = (existing: BubblePosition[]) => {
+    const generateBubbles = (cs: Client[]) => {
+        if (!cs) return []
+
+        const BUBBLE_SIZE = 100;
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
-        const maxRadius = Math.min(centerX, centerY) - BUBBLE_SIZE;
 
-        // 初始化参数
-        let radius = 0;
-        let angle = Math.random() * Math.PI * 2;
-        let attempts = 0;
+        const bubbles: Bubble[] = [];
+        let currentRadius = 0;
+        let angleStep = (2 * Math.PI) / 6; // 初始6个位置
 
-        do {
-            // 极坐标转笛卡尔坐标
-            const x = centerX + radius * Math.cos(angle);
-            const y = centerY + radius * Math.sin(angle);
+        for (let index = 0; index < cs.length; index++) {
+            let attempt = 0;
+            let validPosition = false;
 
-            // 边界检测
-            if (x < 0 || x > window.innerWidth - BUBBLE_SIZE ||
-                y < 0 || y > window.innerHeight - BUBBLE_SIZE) {
-                radius = 0;
-                angle += Math.PI / 6;
-                continue;
+            if (cs[index].id == client?.id) {
+                continue
             }
 
-            // 碰撞检测
-            const collision = existing.some(bubble => {
-                const distance = Math.sqrt(
-                    Math.pow(bubble.x - x, 2) +
-                    Math.pow(bubble.y - y, 2)
-                );
-                return distance < BUBBLE_SIZE * 1.5;
-            });
+            while (!validPosition && attempt < 100) {
+                // 螺旋布局算法
+                const angle = angleStep * (index + attempt);
+                const radius = currentRadius + (attempt * BUBBLE_SIZE * 0.8);
 
-            if (!collision) {
-                return {
-                    x,
-                    y,
-                    radius,
-                    angle
-                };
-            }
+                // 极坐标转笛卡尔坐标
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
 
-            // 逐步扩大搜索半径和角度
-            radius += BUBBLE_SIZE * 0.7;
-            if (radius > maxRadius) {
-                radius = 0;
-                angle += Math.PI / 6; // 每30度尝试一次
-            }
+                // 边界检测
+                const inBounds = x >= 0 && x <= window.innerWidth - BUBBLE_SIZE &&
+                    y >= 0 && y <= window.innerHeight - BUBBLE_SIZE;
 
-            attempts++;
-        } while (attempts < 200);
-
-        return null;
-    };
-
-    // 修改updateBubbles中的生成逻辑
-    const updateBubbles = (newClients: Client[]) => {
-        const newBubbles: BubblePosition[] = [];
-
-        newClients.forEach(client => {
-            const existing = bubbles.find(b => b.id === client.id);
-            if (existing) {
-                newBubbles.push(existing);
-                return;
-            }
-
-            const position = generatePosition([...bubbles, ...newBubbles]);
-            if (position) {
-                newBubbles.push({
-                    id: client.id,
-                    ...position,
-                    color: generateColor()
+                // 碰撞检测
+                const collision = bubbles.some(pos => {
+                    const distance = Math.sqrt(
+                        Math.pow(pos.x - x, 2) +
+                        Math.pow(pos.y - y, 2)
+                    );
+                    return distance < BUBBLE_SIZE * 1.5;
                 });
-            }
-        });
 
-        setBubbles(newBubbles);
+                if (inBounds && !collision) {
+                    bubbles.push({
+                        id: cs[index].id,
+                        name: cs[index].name,
+                        x: x,
+                        y: y,
+                        color: generateColor(),
+                    } as Bubble);
+
+                    // 动态调整布局参数
+                    currentRadius = Math.max(currentRadius, radius);
+                    angleStep = (2 * Math.PI) / Math.max(6, bubbles.length * 0.7);
+                    validPosition = true;
+                }
+
+                attempt++;
+            }
+        }
+
+        return bubbles;
     };
 
     useEffect(() => {
-        // 模拟API获取数据
-        const fetchData = async () => {
-            // const response = await fetch('/api/clients');
-            // const data = await response.json();
-
-            await register();
-
-            const mockData: Client[] = [
-                { id: '1', name: '宁静的梦境' },
-                { id: '2', name: '温暖的时光' },
-                { id: '3', name: '甜蜜的旋律' },
-                { id: '4', name: '柔和的花园' }
-            ];
-            setClients(mockData);
-            updateBubbles(mockData);
-
-            return () => cleanup();
-        };
-        fetchData();
+        register().then(() => {
+            enter().then(() => {
+                list().then()
+            })
+        });
+        connect().then(() => {
+            console.log("[D] rtc create!!!")
+        })
+        return () => cleanup();
     }, []);
 
-    // 窗口尺寸变化处理
-    useEffect(() => {
-        const handleResize = () => {
-            const validBubbles = bubbles.filter(bubble =>
-                bubble.x <= window.innerWidth - BUBBLE_SIZE &&
-                bubble.y <= window.innerHeight - BUBBLE_SIZE
-            );
-            setBubbles(validBubbles);
-        };
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, [bubbles]);
-
     // 气泡点击处理
-    const handleBubbleClick = (id: string) => {
-        // 实际开发中这里调用API删除
-        setClients(prev => prev.filter(c => c.id !== id));
-        setBubbles(prev => prev.filter(b => b.id !== id));
+    const handleBubbleClick = async (id: string) => {
+        console.log('[D] click bubble!!!', id)
+        await create()
     };
 
     return <div className={classes.container}>
-        <CloudBackground />
-        {bubbles.map(bubble => {
-            const client = clients.find(c => c.id === bubble.id);
+        <CloudBackground/>
+        <h1 className={classes.title}>{client?.name}</h1>
+        {clients && generateBubbles(clients).map(bubble => {
+            // const client = clients.find(c => c.id === bubble.id);
             return client ? (
                 <div
                     key={bubble.id}
@@ -219,7 +182,7 @@ export const LocalSharing: React.FC = () => {
                     }}
                     onClick={() => handleBubbleClick(bubble.id)}
                 >
-                    {client.name}
+                    {bubble.name}
                 </div>
             ) : null;
         })}

@@ -1,6 +1,6 @@
 // room controller:
 // local share websocket room controller
-// same remote ip as a
+// same remote IP as a
 package controller
 
 import (
@@ -29,53 +29,71 @@ const (
 	RoomAppTypeWeb = "web"
 )
 
+type RoomMessageType string
+
+const (
+	RoomMessageTypePing  RoomMessageType = "ping"
+	RoomMessageTypeSelf  RoomMessageType = "self"
+	RoomMessageTypeEnter RoomMessageType = "enter"
+	RoomMessageTypeLeave RoomMessageType = "leave"
+)
+
 type roomClient struct {
 	controller *roomController
 	conn       *websocket.Conn
-	clientType RoomClientType
-	appType    RoomAppType
-	ip         string
-	name       string
-	id         string
+	ClientType RoomClientType `json:"client_type"`
+	AppType    RoomAppType    `json:"app_type"`
+	IP         string         `json:"ip"`
+	Room       string         `json:"room"`
+	Name       string         `json:"name"`
+	Id         string         `json:"id"`
+	RegisterAt time.Time      `json:"register_at"`
 	msgChan    chan any
 }
 
 func (rc *roomClient) start(ctx context.Context) {
+	// start write
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
+				_ = rc.conn.Close()
 				return
 			case msg, _ := <-rc.msgChan:
 				err := rc.conn.WriteJSON(msg)
-				log.Debug("RoomClient: write json message, ip = %s, id = %s, name = %s, err = %v", rc.ip, rc.id, rc.name, err)
+				log.Debug("RoomClient: write json message, IP = %s, Id = %s, Name = %s, err = %v", rc.IP, rc.Id, rc.Name, err)
 				if err != nil {
-					log.Error("RoomClient: write json message failed, ip = %s, id = %s, name = %s, err = %s", rc.ip, rc.id, rc.name, err.Error())
+					log.Error("RoomClient: write json message failed, IP = %s, Id = %s, Name = %s, err = %s", rc.IP, rc.Id, rc.Name, err.Error())
 				}
-			default:
-				mt, bs, err := rc.conn.ReadMessage()
-				if err != nil {
-					log.Error("RoomClient: read message failed, ip = %s, id = %s, name = %s, err = %s", rc.ip, rc.id, rc.name, err.Error())
-					rc.controller.Unregister(rc)
-					return
-				}
+			}
+		}
+	}()
 
-				switch mt {
-				case websocket.PingMessage:
-					rs, _ := json.Marshal(map[string]any{"type": "pong", "time": time.Now().UnixMilli(), "id": rc.id, "name": rc.name})
-					if err := rc.conn.WriteMessage(websocket.PongMessage, rs); err != nil {
-						log.Error("RoomClient: response ping message failed, ip = %s, id = %s, name = %s, err = %s", rc.ip, rc.id, rc.name, err.Error())
-					}
-				case websocket.CloseMessage:
-					log.Debug("RoomClient: received close message, unregister ip = %s id = %s, name = %s", rc.ip, rc.id, rc.name)
-					rc.controller.Unregister(rc)
-					return
-				case websocket.TextMessage:
-					log.Info("RoomClient: received text message, ip = %s, id = %s, name = %s, text = %s", rc.ip, rc.id, rc.name, string(bs))
-				case websocket.BinaryMessage:
-					// todo
-					log.Info("RoomClient: received bytes message, ip = %s, id = %s, name = %s, text = %s", rc.ip, rc.id, rc.name, string(bs))
+	// start read
+	go func() {
+		for {
+			mt, bs, err := rc.conn.ReadMessage()
+			if err != nil {
+				log.Error("RoomClient: read message failed, IP = %s, Id = %s, Name = %s, err = %s", rc.IP, rc.Id, rc.Name, err.Error())
+				rc.controller.Unregister(rc)
+				return
+			}
+
+			switch mt {
+			case websocket.PingMessage:
+				rs, _ := json.Marshal(map[string]any{"type": "pong", "time": time.Now().UnixMilli(), "Id": rc.Id, "Name": rc.Name})
+				if err := rc.conn.WriteMessage(websocket.PongMessage, rs); err != nil {
+					log.Error("RoomClient: response ping message failed, IP = %s, Id = %s, Name = %s, err = %s", rc.IP, rc.Id, rc.Name, err.Error())
 				}
+			case websocket.CloseMessage:
+				log.Debug("RoomClient: received close message, unregister IP = %s Id = %s, Name = %s", rc.IP, rc.Id, rc.Name)
+				rc.controller.Unregister(rc)
+				return
+			case websocket.TextMessage:
+				log.Info("RoomClient: received text message, IP = %s, Id = %s, Name = %s, text = %s", rc.IP, rc.Id, rc.Name, string(bs))
+			case websocket.BinaryMessage:
+				// todo
+				log.Info("RoomClient: received bytes message, IP = %s, Id = %s, Name = %s, text = %s", rc.IP, rc.Id, rc.Name, string(bs))
 			}
 		}
 	}()
@@ -83,52 +101,57 @@ func (rc *roomClient) start(ctx context.Context) {
 
 type roomController struct {
 	sync.Mutex
-	ctx   context.Context
-	rooms map[string]map[string]*roomClient // map[room_id(remote-ip)][id]
+	ctx        context.Context
+	rooms      map[string]map[string]*roomClient // map[room_id(remote-IP)][Id]
+	notReadies map[string]*roomClient
 }
 
 var (
 	RoomController = &roomController{
-		rooms: make(map[string]map[string]*roomClient),
+		rooms:      make(map[string]map[string]*roomClient),
+		notReadies: make(map[string]*roomClient),
 	}
 )
 
 func (rc *roomController) Start(ctx context.Context) {
 	rc.ctx = ctx
-
 	go func() {
-		ticker := time.NewTicker(10 * time.Second)
+		ticker := time.NewTicker(1 * time.Minute)
 		for {
 			select {
-			case <-ctx.Done():
+			case <-rc.ctx.Done():
 				return
 			case now := <-ticker.C:
-				for room := range rc.rooms {
-					rc.Broadcast(room, now.String())
+				for _, nrc := range rc.notReadies {
+					if now.Sub(nrc.RegisterAt).Minutes() > 1 {
+						rc.Lock()
+						delete(rc.notReadies, nrc.Id)
+						rc.Unlock()
+					}
 				}
 			}
 		}
 	}()
 }
 
-func (rc *roomController) Register(c *websocket.Conn, ip, userAgent string) {
+func (rc *roomController) Register(ip, userAgent string) *roomClient {
 	nrc := &roomClient{
 		controller: rc,
-		conn:       c,
-		clientType: ClientTypeDesktop,
-		appType:    RoomAppTypeWeb,
-		ip:         ip,
-		id:         uuid.Must(uuid.NewV7()).String(),
-		name:       tool.RandomName(),
+		ClientType: ClientTypeDesktop,
+		AppType:    RoomAppTypeWeb,
+		IP:         ip,
+		Id:         uuid.Must(uuid.NewV7()).String(),
+		Name:       tool.RandomName(),
 		msgChan:    make(chan any, 1),
+		RegisterAt: time.Now(),
 	}
 
 	ua := useragent.Parse(userAgent)
 	switch {
 	case ua.Mobile:
-		nrc.clientType = ClientTypeMobile
+		nrc.ClientType = ClientTypeMobile
 	case ua.Tablet:
-		nrc.clientType = ClientTypeTablet
+		nrc.ClientType = ClientTypeTablet
 	}
 
 	key := "local"
@@ -136,37 +159,84 @@ func (rc *roomController) Register(c *websocket.Conn, ip, userAgent string) {
 		key = ip
 	}
 
+	nrc.Room = key
+
 	rc.Lock()
 
-	if _, ok := rc.rooms[key]; !ok {
-		rc.rooms[key] = make(map[string]*roomClient)
+	log.Debug("controller.room: registry client, IP = %s(%s), Id = %s, Name = %s", key, nrc.IP, nrc.Id, nrc.Name)
+	rc.notReadies[nrc.Id] = nrc
+	if _, ok := rc.rooms[nrc.Room]; !ok {
+		rc.rooms[nrc.Room] = make(map[string]*roomClient)
 	}
-
-	nrc.start(rc.ctx)
-	log.Debug("controller.room: registry client, ip = %s(%s), id = %s, name = %s", key, nrc.ip, nrc.id, nrc.name)
-	rc.rooms[key][nrc.id] = nrc
 
 	rc.Unlock()
 
-	rc.Broadcast(key, "new member")
+	return nrc
+}
+
+func (rc *roomController) Enter(conn *websocket.Conn, id string) {
+	client, ok := rc.notReadies[id]
+	if !ok {
+		log.Warn("controller.room: entry room id not exist, id = %s", id)
+		return
+	}
+
+	rc.Lock()
+
+	if _, ok = rc.rooms[client.Room]; !ok {
+		log.Warn("controller.room: entry room not exist, room = %s, id = %s, name = %s", client.Room, id, client.Name)
+		return
+	}
+
+	rc.rooms[client.Room][id] = client
+	client.conn = conn
+
+	rc.Unlock()
+
+	client.start(rc.ctx)
+
+	rc.Broadcast(client.Room, map[string]any{"type": RoomMessageTypeEnter, "time": time.Now().UnixMilli(), "body": client})
+}
+
+func (rc *roomController) List(room string) []*roomClient {
+	clientList := make([]*roomClient, 0)
+
+	rc.Lock()
+	defer rc.Unlock()
+
+	clients, ok := rc.rooms[room]
+	if !ok {
+		return clientList
+	}
+
+	for _, client := range clients {
+		clientList = append(clientList, client)
+	}
+
+	return clientList
 }
 
 func (rc *roomController) Broadcast(room string, msg any) {
 	for _, client := range rc.rooms[room] {
-		client.msgChan <- msg
+		select {
+		case client.msgChan <- msg:
+		case <-time.After(2 * time.Second):
+			log.Warn("RoomController: broadcast timeout, room = %s, client Id = %s, IP = %s", room, client.Id, client.IP)
+		}
 	}
 }
 
 func (rc *roomController) Unregister(client *roomClient) {
 	key := "local"
-	if !tool.IsPrivateIP(client.ip) {
-		key = client.ip
+	if !tool.IsPrivateIP(client.IP) {
+		key = client.IP
 	}
 
+	log.Debug("controller.room: unregister client, IP = %s(%s), Id = %s, Name = %s", client.IP, key, client.Id, client.Name)
+
 	rc.Lock()
-	defer rc.Unlock()
+	delete(rc.rooms[key], client.Id)
+	rc.Unlock()
 
-	log.Debug("controller.room: unregister client, ip = %s(%s), id = %s, name = %s", client.ip, key, client.id, client.name)
-
-	delete(rc.rooms[key], client.id)
+	rc.Broadcast(key, map[string]any{"type": RoomMessageTypeLeave, "time": time.Now().UnixMilli(), "body": client})
 }

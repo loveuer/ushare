@@ -10,7 +10,7 @@ export default defineConfig({
         target: 'http://127.0.0.1:9119',
         changeOrigin: true
       },
-      '/api/ulocal/registry': {
+      '/api/ulocal/ws': {
         target: 'ws://127.0.0.1:9119',
         rewriteWsOrigin: true,
         ws: true,
