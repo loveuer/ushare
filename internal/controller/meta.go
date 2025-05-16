@@ -135,6 +135,11 @@ func (m *meta) Start(ctx context.Context) {
 
 	// 清理一天前的文件
 	go func() {
+		if opt.Cfg.CleanInterval <= 0 {
+			log.Warn("meta.Clean: no clean interval set, plz clean manual!!!")
+			return
+		}
+
 		ticker := time.NewTicker(5 * time.Minute)
 		duration := time.Duration(opt.Cfg.CleanInterval) * time.Hour
 
