@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>智能文本区域</title>
+    <style>
+        .container {
+            width: 400px;
+            height: 300px;
+            margin: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .input-box {
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: none;
+            resize: none;
+            outline: none;
+            font-family: Arial, sans-serif;
+            transition: padding 0.3s ease;
+        }
+
+        .input-box.has-files {
+            padding-top: 50px;
+        }
+
+        .file-list {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 8px 10px;
+            background: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid #eee;
+            display: none;
+            flex-wrap: wrap;
+            gap: 6px;
+            max-height: 60px;
+            overflow-y: auto;
+        }
+
+        .file-list.has-files {
+           display: flex;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            background: #f0f6ff;
+            border: 1px solid #c2d9ff;
+            border-radius: 15px;
+            padding: 4px 12px;
+            font-size: 13px;
+            animation: slideIn 0.2s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .delete-btn {
+            width: 16px;
+            height: 16px;
+            border: none;
+            background: #ff6b6b;
+            color: white;
+            border-radius: 50%;
+            margin-left: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .delete-btn:hover {
+            background: #ff5252;
+        }
+
+        .buttons {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            background: #4dabf7;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #339af0;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <textarea class="input-box" placeholder="开始输入..."></textarea>
+    <div class="file-list" id="fileList"></div>
+    <div class="buttons">
+        <input type="file" id="fileInput" hidden multiple>
+        <button class="action-btn" onclick="document.getElementById('fileInput').click()">📁 选择文件</button>
+        <button class="action-btn" onclick="send()">✈️ 发送</button>
+    </div>
+</div>
+
+<script>
+    const inputBox = document.querySelector('.input-box');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+
+    // 文件选择事件
+    fileInput.addEventListener('change', function() {
+        updateFileList();
+        adjustInputPadding();
+    });
+
+    // 动态调整输入框间距
+    function adjustInputPadding() {
+        inputBox.classList.toggle('has-files', fileInput.files.length > 0);
+        fileList.classList.toggle('has-files')
+    }
+
+    // 更新文件列表显示
+    function updateFileList() {
+        fileList.innerHTML = '';
+
+        Array.from(fileInput.files).forEach((file, index) => {
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            item.innerHTML = `
+                    <span>${file.name}</span>
+                    <button class="delete-btn" onclick="removeFile(${index})">×</button>
+                `;
+            fileList.appendChild(item);
+        });
+    }
+
+    // 删除单个文件
+    function removeFile(index) {
+        const dt = new DataTransfer();
+        Array.from(fileInput.files).forEach((file, i) => {
+            if (i !== index) dt.items.add(file);
+        });
+        fileInput.files = dt.files;
+        updateFileList();
+        adjustInputPadding();
+    }
+
+    // 发送功能
+    function send() {
+        const text = inputBox.value;
+        const files = fileInput.files;
+
+
+        // 清空内容
+        inputBox.value = '';
+        fileInput.value = '';
+        fileList.innerHTML = '';
+        adjustInputPadding();
+    }
+</script>
+</body>
+</html>

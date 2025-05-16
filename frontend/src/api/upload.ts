@@ -16,7 +16,6 @@ export const useFileUpload = () => {
         setProgress(0);
 
         try {
-            console.log(`[D] api.Upload: upload file = ${file.name}, size = ${file.size}`, file);
             const url = `/api/ushare/${file.name}`;
 
             // 1. 初始化上传
@@ -26,7 +25,7 @@ export const useFileUpload = () => {
             });
 
             if (!res1.ok) {
-                console.log(`[D] upload: put file not ok, status = ${res1.status}, res = ${await res1.text()}`)
+                console.log(`[W] upload: put file not ok, status = ${res1.status}, res = ${await res1.text()}`)
                 if (res1.status === 401) {
                     window.location.href = "/login?next=/share"
                     return ""

@@ -1,6 +1,6 @@
 import {createUseStyles} from "react-jss";
-import {UButton} from "../../component/button/u-button.tsx";
-import {useStore} from "../../store/share.ts";
+import {UButton} from "../../../component/button/u-button.tsx";
+import {useStore} from "../../../store/share.ts";
 
 const useStyle = createUseStyles({
     container: {
@@ -42,7 +42,6 @@ export const PanelRight = () => {
 
     async function onFetchFile() {
         const url = `/ushare/${code}`
-        console.log('[D] onFetchFile: url =', url)
         const link = document.createElement('a');
         link.href = url;
         document.body.appendChild(link);

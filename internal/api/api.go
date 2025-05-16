@@ -26,6 +26,9 @@ func Start(ctx context.Context) <-chan struct{} {
 	{
 		api := app.Group("/api/ulocal")
 		api.Post("/register", handler.LocalRegister())
+		api.Post("/offer", handler.LocalOffer())
+		api.Post("/answer", handler.LocalAnswer())
+		api.Post("/candidate", handler.LocalCandidate())
 		api.Get("/clients", handler.LocalClients())
 		api.Get("/ws", handler.LocalWS())
 	}

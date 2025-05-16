@@ -32,11 +32,21 @@ const (
 type RoomMessageType string
 
 const (
-	RoomMessageTypePing  RoomMessageType = "ping"
-	RoomMessageTypeSelf  RoomMessageType = "self"
 	RoomMessageTypeEnter RoomMessageType = "enter"
 	RoomMessageTypeLeave RoomMessageType = "leave"
 )
+
+type RoomOffer struct {
+	SDP  string `json:"sdp"`
+	Type string `json:"type"`
+}
+
+type RoomCandidate struct {
+	Candidate        string `json:"candidate"`
+	SdpMid           string `json:"sdpMid"`
+	SdpMLineIndex    int    `json:"sdpMLineIndex"`
+	UsernameFragment string `json:"usernameFragment"`
+}
 
 type roomClient struct {
 	sync.Mutex
@@ -45,12 +55,9 @@ type roomClient struct {
 	ClientType RoomClientType `json:"client_type"`
 	AppType    RoomAppType    `json:"app_type"`
 	IP         string         `json:"ip"`
-	Room       string         `json:"room"`
 	Name       string         `json:"name"`
 	Id         string         `json:"id"`
 	RegisterAt time.Time      `json:"register_at"`
-	Offer      any            `json:"offer"`
-	Candidate  any            `json:"candidate"`
 	msgChan    chan any
 }
 
@@ -120,40 +127,24 @@ func (rc *roomClient) start(ctx context.Context) {
 
 type roomController struct {
 	sync.Mutex
-	ctx        context.Context
-	rooms      map[string]map[string]*roomClient // map[room_id(remote-IP)][Id]
-	notReadies map[string]*roomClient
+	ctx context.Context
+	//rooms      map[string]map[string]*roomClient // map[room_id(remote-IP)][Id]
+	pre     map[string]*roomClient
+	clients map[string]*roomClient
 }
 
 var (
 	RoomController = &roomController{
-		rooms:      make(map[string]map[string]*roomClient),
-		notReadies: make(map[string]*roomClient),
+		pre:     make(map[string]*roomClient),
+		clients: make(map[string]*roomClient),
 	}
 )
 
 func (rc *roomController) Start(ctx context.Context) {
 	rc.ctx = ctx
-	go func() {
-		ticker := time.NewTicker(1 * time.Minute)
-		for {
-			select {
-			case <-rc.ctx.Done():
-				return
-			case now := <-ticker.C:
-				for _, nrc := range rc.notReadies {
-					if now.Sub(nrc.RegisterAt).Minutes() > 1 {
-						rc.Lock()
-						delete(rc.notReadies, nrc.Id)
-						rc.Unlock()
-					}
-				}
-			}
-		}
-	}()
 }
 
-func (rc *roomController) Register(ip, userAgent string, candidate, offer any) *roomClient {
+func (rc *roomController) Register(ip, userAgent string) *roomClient {
 	nrc := &roomClient{
 		controller: rc,
 		ClientType: ClientTypeDesktop,
@@ -163,8 +154,6 @@ func (rc *roomController) Register(ip, userAgent string, candidate, offer any) *
 		Name:       tool.RandomName(),
 		msgChan:    make(chan any, 1),
 		RegisterAt: time.Now(),
-		Candidate:  candidate,
-		Offer:      offer,
 	}
 
 	ua := useragent.Parse(userAgent)
@@ -175,89 +164,114 @@ func (rc *roomController) Register(ip, userAgent string, candidate, offer any) *
 		nrc.ClientType = ClientTypeTablet
 	}
 
-	key := "local"
-	if !tool.IsPrivateIP(ip) {
-		key = ip
-	}
-
-	nrc.Room = key
-
 	rc.Lock()
+	defer rc.Unlock()
 
-	log.Debug("controller.room: registry client, IP = %s(%s), Id = %s, Name = %s", key, nrc.IP, nrc.Id, nrc.Name)
-	rc.notReadies[nrc.Id] = nrc
-	if _, ok := rc.rooms[nrc.Room]; !ok {
-		rc.rooms[nrc.Room] = make(map[string]*roomClient)
-	}
-
-	rc.Unlock()
+	rc.pre[nrc.Id] = nrc
 
 	return nrc
 }
 
-func (rc *roomController) Enter(conn *websocket.Conn, id string) {
-	client, ok := rc.notReadies[id]
-	if !ok {
-		log.Warn("controller.room: entry room id not exist, id = %s", id)
-		return
-	}
-
-	rc.Lock()
-
-	if _, ok = rc.rooms[client.Room]; !ok {
-		log.Warn("controller.room: entry room not exist, room = %s, id = %s, name = %s", client.Room, id, client.Name)
-		return
-	}
-
-	rc.rooms[client.Room][id] = client
-	client.conn = conn
-
-	rc.Unlock()
-
-	client.start(rc.ctx)
-
-	rc.Broadcast(client.Room, map[string]any{"type": RoomMessageTypeEnter, "time": time.Now().UnixMilli(), "body": client})
-}
-
-func (rc *roomController) List(room string) []*roomClient {
-	clientList := make([]*roomClient, 0)
+func (rc *roomController) Enter(conn *websocket.Conn, id string) *roomClient {
+	log.Debug("controller.room: registry client, id = %s", id)
 
 	rc.Lock()
 	defer rc.Unlock()
 
-	clients, ok := rc.rooms[room]
+	nrc, ok := rc.pre[id]
 	if !ok {
-		return clientList
+		return nil
 	}
 
-	for _, client := range clients {
+	nrc.conn = conn
+	nrc.start(rc.ctx)
+
+	rc.Broadcast(map[string]any{"type": "enter", "time": time.Now().UnixMilli(), "body": nrc})
+
+	delete(rc.pre, nrc.Id)
+	rc.clients[nrc.Id] = nrc
+
+	return nrc
+}
+
+func (rc *roomController) List() []*roomClient {
+	clientList := make([]*roomClient, 0)
+
+	for _, client := range rc.clients {
 		clientList = append(clientList, client)
 	}
 
 	return clientList
 }
 
-func (rc *roomController) Broadcast(room string, msg any) {
-	for _, client := range rc.rooms[room] {
+func (rc *roomController) Broadcast(msg any) {
+	for _, client := range rc.clients {
 		select {
 		case client.msgChan <- msg:
 		case <-time.After(2 * time.Second):
-			log.Warn("RoomController: broadcast timeout, room = %s, client Id = %s, IP = %s", room, client.Id, client.IP)
+			log.Warn("RoomController: broadcast timeout, client Id = %s, IP = %s", client.Id, client.IP)
 		}
 	}
 }
 
 func (rc *roomController) Unregister(client *roomClient) {
-	key := "local"
-	if !tool.IsPrivateIP(client.IP) {
-		key = client.IP
-	}
-
-	log.Debug("controller.room: unregister client, IP = %s(%s), Id = %s, Name = %s", client.IP, key, client.Id, client.Name)
+	log.Debug("controller.room: unregister client, IP = %s, Id = %s, Name = %s", client.IP, client.Id, client.Name)
 
 	rc.Lock()
-	delete(rc.rooms[key], client.Id)
+	delete(rc.clients, client.Id)
 	rc.Unlock()
 
-	rc.Broadcast(key, map[string]any{"type": RoomMessageTypeLeave, "time": time.Now().UnixMilli(), "body": client})
+	rc.Broadcast(map[string]any{"type": RoomMessageTypeLeave, "time": time.Now().UnixMilli(), "body": client})
+}
+
+func (rc *roomController) Offer(id, from string, offer *RoomOffer) {
+	if _, ok := rc.clients[id]; !ok {
+		return
+	}
+
+	rc.clients[id].msgChan <- map[string]any{
+		"type": "offer",
+		"time": time.Now().UnixMilli(),
+		"data": map[string]any{
+			"id":    id,
+			"from":  from,
+			"offer": offer,
+		},
+	}
+}
+
+func (rc *roomController) Answer(id string, answer *RoomOffer) {
+	if _, ok := rc.clients[id]; !ok {
+		return
+	}
+
+	rc.clients[id].msgChan <- map[string]any{
+		"type": "answer",
+		"time": time.Now().UnixMilli(),
+		"data": map[string]any{
+			"id":     id,
+			"answer": answer,
+		},
+	}
+}
+
+func (rc *roomController) Candidate(id string, candidate *RoomCandidate) {
+	if _, ok := rc.clients[id]; !ok {
+		return
+	}
+
+	for _, client := range rc.clients {
+		if client.Id == id {
+			continue
+		}
+
+		client.msgChan <- map[string]any{
+			"type": "candidate",
+			"time": time.Now().UnixMilli(),
+			"data": map[string]any{
+				"id":        client.Id,
+				"candidate": candidate,
+			},
+		}
+	}
 }

@@ -1,5 +1,5 @@
 import {useState} from "react";
-import {message} from "../component/message/u-message.tsx";
+import {message} from "../hook/message/u-message.tsx";
 
 export interface User {
     id: number;

@@ -7,6 +7,7 @@ import (
 	"github.com/loveuer/ushare/internal/api"
 	"github.com/loveuer/ushare/internal/controller"
 	"github.com/loveuer/ushare/internal/opt"
+	"github.com/loveuer/ushare/internal/pkg/tool"
 	"os/signal"
 	"syscall"
 )
@@ -16,11 +17,12 @@ func init() {
 	flag.StringVar(&opt.Cfg.Address, "address", "0.0.0.0:9119", "")
 	flag.StringVar(&opt.Cfg.DataPath, "data", "/data", "")
 	flag.StringVar(&opt.Cfg.Auth, "auth", "", "auth required(admin, password)")
+	flag.IntVar(&opt.Cfg.CleanInterval, "clean", 24, "清理文件的周期, 单位: 小时, 0 则表示不自动清理")
 	flag.Parse()
 
 	if opt.Cfg.Debug {
 		log.SetLogLevel(log.LogLevelDebug)
-		log.Debug("start server with debug mode")
+		tool.TablePrinter(opt.Cfg)
 	}
 }
 

@@ -1,9 +1,9 @@
 import {createUseStyles} from "react-jss";
-import {UButton} from "../../component/button/u-button.tsx";
+import {UButton} from "../../../component/button/u-button.tsx";
 import React, {useState} from "react";
-import {useStore} from "../../store/share.ts";
-import {message} from "../../component/message/u-message.tsx";
-import {useFileUpload} from "../../api/upload.ts";
+import {useStore} from "../../../store/share.ts";
+import {message} from "../../../hook/message/u-message.tsx";
+import {useFileUpload} from "../../../api/upload.ts";
 
 const useUploadStyle = createUseStyles({
     container: {
@@ -136,7 +136,6 @@ const PanelLeftUpload: React.FC<{ set_code: (code:string) => void }> = ({set_cod
     }
 
     function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-        console.log('[D] onFileChange: e =', e)
         setFile(e.currentTarget.files ? e.currentTarget.files[0] : null)
     }
 

@@ -11,23 +11,12 @@ import (
 
 func LocalRegister() nf.HandlerFunc {
 	return func(c *nf.Ctx) error {
-		type Req struct {
-			Candidate any `json:"candidate"`
-			Offer     any `json:"offer"`
-		}
-
 		var (
-			err error
-			req = new(Req)
-			ip  = c.IP(true)
-			ua  = c.Get("User-Agent")
+			ip = c.IP(true)
+			ua = c.Get("User-Agent")
 		)
 
-		if err = c.BodyParser(req); err != nil {
-			return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{"msg": err.Error()})
-		}
-
-		client := controller.RoomController.Register(ip, ua, req.Candidate, req.Offer)
+		client := controller.RoomController.Register(ip, ua)
 
 		return resp.Resp200(c, client)
 	}
@@ -35,12 +24,7 @@ func LocalRegister() nf.HandlerFunc {
 
 func LocalClients() nf.HandlerFunc {
 	return func(c *nf.Ctx) error {
-		room := c.Query("room")
-		if room == "" {
-			return c.Status(http.StatusBadRequest).JSON(map[string]string{"err": "room can't be empty"})
-		}
-
-		list := controller.RoomController.List(room)
+		list := controller.RoomController.List()
 
 		return resp.Resp200(c, list)
 	}
@@ -56,7 +40,6 @@ func LocalWS() nf.HandlerFunc {
 	}
 
 	return func(c *nf.Ctx) error {
-
 		id := c.Query("id")
 
 		if id == "" {
@@ -72,5 +55,72 @@ func LocalWS() nf.HandlerFunc {
 		controller.RoomController.Enter(conn, id)
 
 		return nil
+	}
+}
+
+func LocalOffer() nf.HandlerFunc {
+	return func(c *nf.Ctx) error {
+		type Req struct {
+			Id    string                `json:"id"`
+			From  string                `json:"from"`
+			Offer *controller.RoomOffer `json:"offer"`
+		}
+
+		var (
+			err error
+			req = new(Req)
+		)
+
+		if err = c.BodyParser(req); err != nil {
+			return c.Status(http.StatusBadRequest).JSON(map[string]string{"err": err.Error()})
+		}
+
+		controller.RoomController.Offer(req.Id, req.From, req.Offer)
+
+		return resp.Resp200(c, req.Offer)
+	}
+}
+
+func LocalAnswer() nf.HandlerFunc {
+	return func(c *nf.Ctx) error {
+		type Req struct {
+			Id     string                `json:"id"`
+			Answer *controller.RoomOffer `json:"answer"`
+		}
+
+		var (
+			err error
+			req = new(Req)
+		)
+
+		if err = c.BodyParser(req); err != nil {
+			return c.Status(http.StatusBadRequest).JSON(map[string]string{"err": err.Error()})
+		}
+
+		controller.RoomController.Answer(req.Id, req.Answer)
+
+		return resp.Resp200(c, req)
+	}
+}
+
+func LocalCandidate() nf.HandlerFunc {
+	return func(c *nf.Ctx) error {
+		type Req struct {
+			Id        string                    `json:"id"`
+			Candidate *controller.RoomCandidate `json:"candidate"`
+		}
+
+		var (
+			err error
+			req = new(Req)
+		)
+
+		if err = c.BodyParser(req); err != nil {
+			return c.Status(http.StatusBadRequest).JSON(map[string]string{"err": err.Error()})
+		}
+
+		controller.RoomController.Candidate(req.Id, req.Candidate)
+
+		return resp.Resp200(c, req)
 	}
 }
