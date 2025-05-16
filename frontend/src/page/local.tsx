@@ -1,7 +1,6 @@
 import {CloudBackground} from "../component/fluid/cloud.tsx";
 import {useEffect} from "react";
 import {createUseStyles} from "react-jss";
-import {useRTC} from "../store/rtc.ts";
 import {Client, useRoom} from "../store/local.ts";
 
 const useClass = createUseStyles({
@@ -71,7 +70,6 @@ interface Bubble {
 export const LocalSharing: React.FC = () => {
     const classes = useClass();
     const {register, enter, list, cleanup, client, clients} = useRoom();
-    const {connect, create} = useRTC();
 
     // 生成随机颜色
     const generateColor = () => {
@@ -147,20 +145,18 @@ export const LocalSharing: React.FC = () => {
 
     useEffect(() => {
         register().then(() => {
-            enter().then(() => {
-                list().then()
-            })
+            setTimeout(() => {
+                enter().then(() => {
+                    list().then()
+                })
+            }, 600)
         });
-        connect().then(() => {
-            console.log("[D] rtc create!!!")
-        })
         return () => cleanup();
     }, []);
 
     // 气泡点击处理
     const handleBubbleClick = async (id: string) => {
         console.log('[D] click bubble!!!', id)
-        await create()
     };
 
     return <div className={classes.container}>

@@ -11,10 +11,23 @@ import (
 
 func LocalRegister() nf.HandlerFunc {
 	return func(c *nf.Ctx) error {
-		ip := c.IP(true)
-		ua := c.Get("User-Agent")
+		type Req struct {
+			Candidate any `json:"candidate"`
+			Offer     any `json:"offer"`
+		}
 
-		client := controller.RoomController.Register(ip, ua)
+		var (
+			err error
+			req = new(Req)
+			ip  = c.IP(true)
+			ua  = c.Get("User-Agent")
+		)
+
+		if err = c.BodyParser(req); err != nil {
+			return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{"msg": err.Error()})
+		}
+
+		client := controller.RoomController.Register(ip, ua, req.Candidate, req.Offer)
 
 		return resp.Resp200(c, client)
 	}

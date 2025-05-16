@@ -39,6 +39,7 @@ const (
 )
 
 type roomClient struct {
+	sync.Mutex
 	controller *roomController
 	conn       *websocket.Conn
 	ClientType RoomClientType `json:"client_type"`
@@ -48,6 +49,8 @@ type roomClient struct {
 	Name       string         `json:"name"`
 	Id         string         `json:"id"`
 	RegisterAt time.Time      `json:"register_at"`
+	Offer      any            `json:"offer"`
+	Candidate  any            `json:"candidate"`
 	msgChan    chan any
 }
 
@@ -90,10 +93,26 @@ func (rc *roomClient) start(ctx context.Context) {
 				rc.controller.Unregister(rc)
 				return
 			case websocket.TextMessage:
-				log.Info("RoomClient: received text message, IP = %s, Id = %s, Name = %s, text = %s", rc.IP, rc.Id, rc.Name, string(bs))
+				log.Debug("RoomClient: received text message, IP = %s, Id = %s, Name = %s, text = %s", rc.IP, rc.Id, rc.Name, string(bs))
 			case websocket.BinaryMessage:
+				log.Debug("RoomClient: received bytes message, IP = %s, Id = %s, Name = %s, text = %s", rc.IP, rc.Id, rc.Name, string(bs))
 				// todo
-				log.Info("RoomClient: received bytes message, IP = %s, Id = %s, Name = %s, text = %s", rc.IP, rc.Id, rc.Name, string(bs))
+				//msg := new(model.Message)
+				//if err = json.Unmarshal(bs, msg); err != nil {
+				//	log.Error("RoomClient: unmarshal message failed, id = %s, name = %s, err = %s", rc.Id, rc.Name, err.Error())
+				//	continue
+				//}
+				//
+				//switch msg.Type {
+				//case model.WSMessageTypeOffer:
+				//	rc.Lock()
+				//	rc.Offer = msg.Body
+				//	rc.Unlock()
+				//case model.WSMessageTypeCandidate:
+				//	rc.Lock()
+				//	rc.Candidate = msg.Body
+				//	rc.Unlock()
+				//}
 			}
 		}
 	}()
@@ -134,7 +153,7 @@ func (rc *roomController) Start(ctx context.Context) {
 	}()
 }
 
-func (rc *roomController) Register(ip, userAgent string) *roomClient {
+func (rc *roomController) Register(ip, userAgent string, candidate, offer any) *roomClient {
 	nrc := &roomClient{
 		controller: rc,
 		ClientType: ClientTypeDesktop,
@@ -144,6 +163,8 @@ func (rc *roomController) Register(ip, userAgent string) *roomClient {
 		Name:       tool.RandomName(),
 		msgChan:    make(chan any, 1),
 		RegisterAt: time.Now(),
+		Candidate:  candidate,
+		Offer:      offer,
 	}
 
 	ua := useragent.Parse(userAgent)
