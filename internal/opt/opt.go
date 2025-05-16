@@ -7,10 +7,11 @@ import (
 )
 
 type config struct {
-	Debug    bool
-	Address  string
-	DataPath string
-	Auth     string
+	Debug         bool
+	Address       string
+	DataPath      string
+	Auth          string
+	CleanInterval int
 }
 
 var (

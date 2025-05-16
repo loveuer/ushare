@@ -136,13 +136,19 @@ func (m *meta) Start(ctx context.Context) {
 	// 清理一天前的文件
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
+		duration := time.Duration(opt.Cfg.CleanInterval) * time.Hour
 
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case now := <-ticker.C:
+				//log.Debug("meta.Clean: 开始清理过期文件 = %v", duration)
 				_ = filepath.Walk(opt.Cfg.DataPath, func(path string, info os.FileInfo, err error) error {
+					if info == nil {
+						return nil
+					}
+
 					if info.IsDir() {
 						return nil
 					}
@@ -168,12 +174,16 @@ func (m *meta) Start(ctx context.Context) {
 
 					code := strings.TrimPrefix(name, ".meta.")
 
-					if now.Sub(time.UnixMilli(mi.CreatedAt)) > 24*time.Hour {
+					if now.Sub(time.UnixMilli(mi.CreatedAt)) > duration {
 
 						log.Debug("controller.meta: file out of date, code = %s, user_key = %s", code, mi.Uploader)
 
-						os.RemoveAll(opt.FilePath(code))
-						os.RemoveAll(path)
+						if err = os.RemoveAll(opt.FilePath(code)); err != nil {
+							log.Warn("meta.Clean: remove file failed, file = %s, err = %s", opt.FilePath(code), err.Error())
+						}
+						if err = os.RemoveAll(path); err != nil {
+							log.Warn("meta.Clean: remove file failed, file = %s, err = %s", path, err.Error())
+						}
 
 						m.Lock()
 						delete(m.m, code)
