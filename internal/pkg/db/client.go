@@ -1,9 +1,10 @@
 package db
 
 import (
-	"au99999/internal/opt"
-	"au99999/pkg/tool"
 	"context"
+
+	"github.com/loveuer/ushare/internal/opt"
+	"github.com/loveuer/ushare/internal/pkg/tool"
 
 	"gorm.io/gorm"
 )
