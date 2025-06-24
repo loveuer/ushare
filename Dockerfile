@@ -25,8 +25,7 @@ COPY --from=frontend-builder /app/frontend/dist /usr/share/nginx/html
 COPY --from=backend-builder /app/ushare /usr/local/bin/ushare
 
 # 配置 Nginx
-RUN rm /etc/nginx/conf.d/default.conf
-COPY deployment/nginx.conf /etc/nginx/conf.d
+COPY deployment/nginx.conf /etc/nginx/nginx.conf
 COPY deployment/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN chmod +x /usr/local/bin/entrypoint.sh
