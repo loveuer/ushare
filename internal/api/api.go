@@ -2,19 +2,20 @@ package api
 
 import (
 	"context"
+	"net"
+	"net/http"
+
 	"github.com/loveuer/nf"
 	"github.com/loveuer/nf/nft/log"
 	"github.com/loveuer/nf/nft/tool"
 	"github.com/loveuer/ushare/internal/handler"
 	"github.com/loveuer/ushare/internal/opt"
-	"net"
-	"net/http"
 )
 
 func Start(ctx context.Context) <-chan struct{} {
 	app := nf.New(nf.Config{BodyLimit: 10 * 1024 * 1024 * 1024})
 
-	app.Get("/api/available", func(c *nf.Ctx) error {
+	app.Get("/api/healthz", func(c *nf.Ctx) error {
 		return c.SendStatus(http.StatusOK)
 	})
 
@@ -32,6 +33,9 @@ func Start(ctx context.Context) <-chan struct{} {
 		api.Get("/clients", handler.LocalClients())
 		api.Get("/ws", handler.LocalWS())
 	}
+
+	// 静态文件服务 - 作为中间件处理
+	app.Use(handler.ServeFrontendMiddleware())
 
 	ready := make(chan struct{})
 	ln, err := net.Listen("tcp", opt.Cfg.Address)

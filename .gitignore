@@ -1,5 +1,19 @@
+# IDE
 .idea
 .vscode
+
+# OS
 .DS_Store
+
+# Build output
 dist
-xtest
+
+# Data directories
+data/
+x-*/
+
+# Temporary build files
+internal/static/frontend
+
+# Compiled binaries
+ushare

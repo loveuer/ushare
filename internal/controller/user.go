@@ -21,11 +21,11 @@ func (um *userManager) Login(username string, password string) (*model.User, err
 		now = time.Now()
 	)
 
-	if username != "admin" {
+	if username != opt.Cfg.Username {
 		return nil, errors.New("账号或密码错误")
 	}
 
-	if !tool.ComparePassword(password, opt.Cfg.Auth) {
+	if !tool.ComparePassword(password, opt.Cfg.Password) {
 		return nil, errors.New("账号或密码错误")
 	}
 

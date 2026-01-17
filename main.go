@@ -16,9 +16,10 @@ func init() {
 	flag.BoolVar(&opt.Cfg.Debug, "debug", false, "debug mode")
 	flag.StringVar(&opt.Cfg.Address, "address", "0.0.0.0:9119", "")
 	flag.StringVar(&opt.Cfg.DataPath, "data", "/data", "")
-	flag.StringVar(&opt.Cfg.Auth, "auth", "", "auth required(admin, password)")
 	flag.IntVar(&opt.Cfg.CleanInterval, "clean", 24, "清理文件的周期, 单位: 小时, 0 则表示不自动清理")
 	flag.Parse()
+
+	opt.LoadFromEnv()
 
 	if opt.Cfg.Debug {
 		log.SetLogLevel(log.LogLevelDebug)

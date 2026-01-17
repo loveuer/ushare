@@ -21,7 +21,7 @@ func AuthVerify() nf.HandlerFunc {
 	}
 
 	return func(c *nf.Ctx) error {
-		if opt.Cfg.Auth == "" {
+		if opt.Cfg.Username == "" || opt.Cfg.Password == "" {
 			return c.Next()
 		}
 

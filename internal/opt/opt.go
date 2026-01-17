@@ -4,13 +4,15 @@ import (
 	"context"
 	"github.com/loveuer/nf/nft/log"
 	"github.com/loveuer/ushare/internal/pkg/tool"
+	"os"
 )
 
 type config struct {
 	Debug         bool
 	Address       string
 	DataPath      string
-	Auth          string
+	Username      string
+	Password      string
 	CleanInterval int
 }
 
@@ -19,8 +21,22 @@ var (
 )
 
 func Init(_ context.Context) {
-	if Cfg.Auth != "" {
-		Cfg.Auth = tool.NewPassword(Cfg.Auth)
-		log.Debug("opt.Init: encrypted password = %s", Cfg.Auth)
+	if Cfg.Username == "" {
+		Cfg.Username = "admin"
+	}
+	if Cfg.Password == "" {
+		Cfg.Password = "ushare@123"
+	}
+
+	Cfg.Password = tool.NewPassword(Cfg.Password)
+	log.Debug("opt.Init: username = %s, encrypted password = %s", Cfg.Username, Cfg.Password)
+}
+
+func LoadFromEnv() {
+	if username := os.Getenv("USHARE_USERNAME"); username != "" {
+		Cfg.Username = username
+	}
+	if password := os.Getenv("USHARE_PASSWORD"); password != "" {
+		Cfg.Password = password
 	}
 }

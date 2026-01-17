@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { createUseStyles } from "react-jss";
-import { CloudBackground } from "../component/fluid/cloud.tsx";
-import {useAuth} from "../api/auth.ts";
+import { useAuth } from "../api/auth.ts";
+import { UButton } from "../component/button/u-button.tsx";
 
 const useClass = createUseStyles({
     container: {
@@ -14,88 +14,42 @@ const useClass = createUseStyles({
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        position: 'relative',
-    },
-    login_container: {
-        background: "rgba(255,255,255,.5)",
-        boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-        width: "350px",
-        height: '100%',
-        position: 'absolute',
-        left: '70%',
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        backgroundColor: "#e3f2fd",
     },
     form: {
-        height: '100%',
-        width: '100%',
+        backgroundColor: "#C8E6C9",
+        boxShadow: "inset 0 0 15px rgba(56, 142, 60, 0.15)",
+        padding: "30px",
+        borderRadius: "15px",
+        width: "350px",
         display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        flexDirection: 'column',
-        color: "#1a73e8",
-        padding: '40px',
+        flexDirection: "column",
     },
-    input: {
-        width: '100%',
-        marginTop: '20px',
-        "& > input": {
-            width: "calc(100% - 30px)",
-            padding: "12px 15px",
-            border: "1px solid #ddd",
-            borderRadius: "6px",
-            fontSize: "16px",
-            transition: "border-color 0.3s",
-
-            "&:focus": {
-                outline: "none",
-                borderColor: "#1a73e8",
-                boxShadow: "0 0 0 2px rgba(26, 115, 232, 0.2)",
-            },
-            "&:hover": {
-                borderColor: "#1a73e8",
-            }
-        },
+    title: {
+        color: "#2c9678",
+        marginTop: 0,
+        marginBottom: "25px",
     },
-    button: {
-        marginTop: '20px',
-        width: '100%',
-        "& > button": {
-            width: "100%",
-            padding: "12px",
-            background: "#1a73e8",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            fontSize: "16px",
-            cursor: "pointer",
-            transition: "background 0.3s",
-            "&:hover": {
-                background: "#1557b0",
-            },
-        },
-    },
-
     inputContainer: {
         position: 'relative',
         width: '100%',
-        marginTop: '20px',
+        marginTop: '15px',
     },
     inputField: {
-        width: "calc(100% - 52px)",
-        padding: "12px 35px 12px 15px",
-        border: "1px solid #ddd",
-        borderRadius: "6px",
+        width: "100%",
+        padding: "11px",
+        border: "2px solid #ddd",
+        borderRadius: "5px",
         fontSize: "16px",
+        boxSizing: "border-box",
         transition: "border-color 0.3s",
+        background: "rgba(255,255,255,0.8)",
         "&:focus": {
             outline: "none",
-            borderColor: "#1a73e8",
-            boxShadow: "0 0 0 2px rgba(26, 115, 232, 0.2)",
+            borderColor: "#2c9678",
         },
         "&:hover": {
-            borderColor: "#1a73e8",
+            borderColor: "#2c9678",
         }
     },
     iconButton: {
@@ -110,12 +64,19 @@ const useClass = createUseStyles({
         "&:hover": {
             color: '#333',
         }
+    },
+    button: {
+        marginTop: '25px',
+        width: '100%',
+        "& > button": {
+            width: "100%",
+        },
     }
 })
 
 export const Login: React.FC = () => {
     const classes = useClass()
-    const {login} = useAuth()
+    const { login } = useAuth()
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
     const [showPassword, setShowPassword] = useState(false)
@@ -125,58 +86,53 @@ export const Login: React.FC = () => {
             await login(username, password)
             window.location.href = "/"
         } catch (_e) {
-            
+
         }
     }
 
     return <div className={classes.container}>
-        <CloudBackground/>
-        <div className={classes.login_container}>
-            <div className={classes.form}>
-                <h2>UShare</h2>
+        <div className={classes.form}>
+            <h2 className={classes.title}>UShare</h2>
 
-                {/* 用户名输入框 */}
-                <div className={classes.inputContainer}>
-                    <input
-                        className={classes.inputField}
-                        placeholder="请输入账号"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                    />
-                    {username && (
-                        <button
-                            className={classes.iconButton}
-                            onClick={() => setUsername("")}
-                            style={{ right: '10px', fontSize: '16px' }}
-                        >
-                            ×
-                        </button>
-                    )}
-                </div>
-
-                {/* 密码输入框 */}
-                <div className={classes.inputContainer}>
-                    <input
-                        className={classes.inputField}
-                        placeholder="请输入密码"
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
+            <div className={classes.inputContainer}>
+                <input
+                    className={classes.inputField}
+                    placeholder="请输入账号"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                />
+                {username && (
                     <button
                         className={classes.iconButton}
-                        onMouseDown={() => setShowPassword(true)}
-                        onMouseUp={() => setShowPassword(false)}
-                        onMouseLeave={() => setShowPassword(false)}
-                        style={{ right: '10px', fontSize: '12px' }}
+                        onClick={() => setUsername("")}
+                        style={{ right: '10px', fontSize: '16px' }}
                     >
-                        {showPassword ? "👁" : "👁"}
+                        ×
                     </button>
-                </div>
+                )}
+            </div>
 
-                <div className={classes.button}>
-                    <button onClick={onLogin}>登录</button>
-                </div>
+            <div className={classes.inputContainer}>
+                <input
+                    className={classes.inputField}
+                    placeholder="请输入密码"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                    className={classes.iconButton}
+                    onMouseDown={() => setShowPassword(true)}
+                    onMouseUp={() => setShowPassword(false)}
+                    onMouseLeave={() => setShowPassword(false)}
+                    style={{ right: '10px', fontSize: '12px' }}
+                >
+                    {showPassword ? "🫣" : "🙈"}
+                </button>
+            </div>
+
+            <div className={classes.button}>
+                <UButton onClick={onLogin}>登录</UButton>
             </div>
         </div>
     </div>
