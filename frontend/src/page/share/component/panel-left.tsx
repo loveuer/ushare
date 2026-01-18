@@ -11,6 +11,12 @@ const useUploadStyle = createUseStyles({
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
+        minHeight: "50vh",
+
+        "@media (max-width: 768px)": {
+            minHeight: "auto",
+            padding: "20px 10px",
+        },
     },
     form: {
         backgroundColor: "#C8E6C9",
@@ -19,10 +25,20 @@ const useUploadStyle = createUseStyles({
         borderRadius: "15px",
         width: "70%",
         margin: "20px 60px 20px 0",
-        /*todo margin 不用 px*/
+
+        "@media (max-width: 768px)": {
+            width: "90%",
+            margin: "20px 0",
+            padding: "20px",
+        },
     },
     title: {
-        color: "#2c9678"
+        color: "#2c9678",
+
+        "@media (max-width: 768px)": {
+            fontSize: "1.5rem",
+            marginBottom: "15px",
+        },
     },
     file: {
         display: 'none',
@@ -33,7 +49,11 @@ const useUploadStyle = createUseStyles({
     },
     name: {
         color: "#2c9678",
-        marginLeft: '10px'
+        marginLeft: '10px',
+
+        "@media (max-width: 768px)": {
+            fontSize: "14px",
+        },
     },
     clean: {
         borderRadius: '50%',
@@ -48,14 +68,12 @@ const useShowStyle = createUseStyles({
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        position: "relative", // 为关闭按钮提供定位基准
-    },
-    title: {
-        color: "#2c9678",
-        marginTop: 0,
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
+        minHeight: "50vh",
+
+        "@media (max-width: 768px)": {
+            minHeight: "auto",
+            padding: "20px 10px",
+        },
     },
     form: {
         backgroundColor: "#C8E6C9",
@@ -65,6 +83,25 @@ const useShowStyle = createUseStyles({
         width: "70%",
         margin: "20px 60px 20px 0",
         position: "relative",
+
+        "@media (max-width: 768px)": {
+            width: "90%",
+            margin: "20px 0",
+            padding: "20px",
+        },
+    },
+    title: {
+        color: "#2c9678",
+        marginTop: 0,
+        marginBottom: "25px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+
+        "@media (max-width: 768px)": {
+            fontSize: "1.5rem",
+            marginBottom: "15px",
+        },
     },
     closeButton: {
         position: "absolute",
@@ -78,9 +115,7 @@ const useShowStyle = createUseStyles({
         height: "24px",
         cursor: "pointer",
         "&:hover": {
-            // background: "#cc0000",
             boxShadow:  "20px 20px 60px #fff, -20px -20px 60px #fff",
-            // boxShadow:  "20px 20px 60px #eee",
         },
     },
     codeWrapper: {
@@ -89,6 +124,10 @@ const useShowStyle = createUseStyles({
         borderRadius: "8px",
         margin: "15px 0",
         overflowX: "auto",
+
+        "@media (max-width: 768px)": {
+            padding: "0 10px",
+        },
     },
     pre: {
         display: 'flex',
@@ -98,6 +137,12 @@ const useShowStyle = createUseStyles({
         height: '24px',
         "& > code": {
             marginLeft: "0",
+            fontSize: "14px",
+            wordBreak: "break-all",
+
+            "@media (max-width: 768px)": {
+                fontSize: "12px",
+            },
         }
     },
     copyButton: {
@@ -111,6 +156,11 @@ const useShowStyle = createUseStyles({
         transition: "background 0.3s",
         "&:hover": {
             background: "#1f6d5a",
+        },
+
+        "@media (max-width: 768px)": {
+            padding: "6px 12px",
+            fontSize: "12px",
         },
     },
 });

@@ -5,6 +5,10 @@ const useStyle = createUseStyles({
         backgroundColor: 'lightgray',
         position: "relative",
         overflow: "hidden",
+
+        "@media (max-width: 768px)": {
+            display: "none",
+        },
     },
     left: {
         backgroundColor: "#e3f2fd",

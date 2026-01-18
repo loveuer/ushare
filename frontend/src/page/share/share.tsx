@@ -13,6 +13,12 @@ const useStyle = createUseStyles({
         height: "100vh",
         display: "grid",
         gridTemplateColumns: "40% 20% 40%",
+
+        "@media (max-width: 768px)": {
+            gridTemplateColumns: "100%",
+            gridTemplateRows: "auto auto",
+            overflowY: "auto",
+        },
     },
 })
 
@@ -20,7 +26,7 @@ export const FileSharing = () => {
     const style = useStyle()
         return <div className={style.container}>
         <PanelLeft />
-        <PanelMid/>
+        <PanelMid />
         <PanelRight/>
     </div>
 };
