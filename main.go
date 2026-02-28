@@ -3,10 +3,15 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+	"path/filepath"
+
 	"github.com/loveuer/nf/nft/log"
 	"github.com/loveuer/ushare/internal/api"
 	"github.com/loveuer/ushare/internal/controller"
+	"github.com/loveuer/ushare/internal/model"
 	"github.com/loveuer/ushare/internal/opt"
+	"github.com/loveuer/ushare/internal/pkg/db"
 	"github.com/loveuer/ushare/internal/pkg/tool"
 	"os/signal"
 	"syscall"
@@ -32,6 +37,21 @@ func main() {
 	defer cancel()
 
 	opt.Init(ctx)
+
+	if err := os.MkdirAll(opt.Cfg.DataPath, 0755); err != nil {
+		log.Fatal("main: create data path failed: %s", err.Error())
+	}
+
+	dbPath := filepath.Join(opt.Cfg.DataPath, ".ushare.db")
+	if err := db.Init(ctx, "sqlite::"+dbPath); err != nil {
+		log.Fatal("main: init db failed: %s", err.Error())
+	}
+	log.Debug("main: db initialized at %s", dbPath)
+
+	if err := db.Default.Migrate(&model.Role{}, &model.User{}); err != nil {
+		log.Fatal("main: db migrate failed: %s", err.Error())
+	}
+
 	controller.UserManager.Start(ctx)
 	controller.MetaManager.Start(ctx)
 	controller.RoomController.Start(ctx)

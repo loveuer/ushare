@@ -46,6 +46,10 @@ func (c *Client) Session(ctxs ...context.Context) *gorm.DB {
 	return session
 }
 
+func (c *Client) Migrate(models ...interface{}) error {
+	return c.cli.AutoMigrate(models...)
+}
+
 func (c *Client) Close() {
 	d, _ := c.cli.DB()
 	d.Close()

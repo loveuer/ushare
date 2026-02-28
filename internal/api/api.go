@@ -9,6 +9,7 @@ import (
 	"github.com/loveuer/nf/nft/log"
 	"github.com/loveuer/nf/nft/tool"
 	"github.com/loveuer/ushare/internal/handler"
+	"github.com/loveuer/ushare/internal/model"
 	"github.com/loveuer/ushare/internal/opt"
 )
 
@@ -19,11 +20,16 @@ func Start(ctx context.Context) <-chan struct{} {
 		return c.SendStatus(http.StatusOK)
 	})
 
-	app.Get("/ushare/:code", handler.Fetch())
-	app.Put("/api/ushare/:filename", handler.AuthVerify(), handler.ShareNew()) // 获取上传 code, 分片大小
-	app.Post("/api/ushare/:code", handler.ShareUpload())                       // 分片上传接口
+	// Auth
 	app.Post("/api/uauth/login", handler.AuthLogin())
+	app.Get("/api/uauth/me", handler.AuthVerify(), handler.AuthMe())
 
+	// File sharing
+	app.Get("/ushare/:code", handler.Fetch())
+	app.Put("/api/ushare/:filename", handler.AuthVerify(), handler.AuthPermission(model.PermUpload), handler.ShareNew())
+	app.Post("/api/ushare/:code", handler.ShareUpload())
+
+	// Local sharing (WebRTC signaling)
 	{
 		api := app.Group("/api/ulocal")
 		api.Post("/register", handler.LocalRegister())
@@ -34,7 +40,17 @@ func Start(ctx context.Context) <-chan struct{} {
 		api.Get("/ws", handler.LocalWS())
 	}
 
-	// 静态文件服务 - 作为中间件处理
+	// Admin
+	{
+		api := app.Group("/api/admin")
+		api.Get("/users", handler.AuthVerify(), handler.AuthPermission(model.PermUserManage), handler.AdminListUsers())
+		api.Post("/users", handler.AuthVerify(), handler.AuthPermission(model.PermUserManage), handler.AdminCreateUser())
+		api.Put("/users/:id", handler.AuthVerify(), handler.AuthPermission(model.PermUserManage), handler.AdminUpdateUser())
+		api.Delete("/users/:id", handler.AuthVerify(), handler.AuthPermission(model.PermUserManage), handler.AdminDeleteUser())
+		api.Get("/roles", handler.AuthVerify(), handler.AuthPermission(model.PermUserManage), handler.AdminListRoles())
+	}
+
+	// Frontend static files
 	app.Use(handler.ServeFrontendMiddleware())
 
 	ready := make(chan struct{})
