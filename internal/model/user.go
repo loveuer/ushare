@@ -8,7 +8,6 @@ type User struct {
 	Username  string    `gorm:"uniqueIndex;not null" json:"username"`
 	Password  string    `gorm:"not null" json:"-"`
 	RoleID    uint      `gorm:"not null" json:"role_id"`
-	Role      Role      `gorm:"foreignKey:RoleID" json:"role"`
 	Active    bool      `gorm:"default:true" json:"active"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

@@ -7,7 +7,6 @@ import "time"
 type Token struct {
 	ID         uint       `gorm:"primarykey" json:"id"`
 	UserID     uint       `gorm:"not null;index" json:"user_id"`
-	User       User       `gorm:"foreignKey:UserID" json:"-"`
 	Name       string     `gorm:"not null" json:"name"`
 	Token      string     `gorm:"uniqueIndex;not null" json:"-"`
 	CreatedAt  time.Time  `json:"created_at"`

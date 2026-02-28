@@ -89,7 +89,6 @@ func (um *userManager) Login(username, password string) (*model.Session, error) 
 	user := new(model.User)
 	if err := db.Default.Session().
 		Where("username = ? AND active = ?", username, true).
-		Preload("Role").
 		First(user).Error; err != nil {
 		return nil, errors.New("账号或密码错误")
 	}
@@ -98,12 +97,17 @@ func (um *userManager) Login(username, password string) (*model.Session, error) 
 		return nil, errors.New("账号或密码错误")
 	}
 
+	var role model.Role
+	if err := db.Default.Session().First(&role, user.RoleID).Error; err != nil {
+		return nil, errors.New("账号角色异常，请联系管理员")
+	}
+
 	session := &model.Session{
 		UserID:      user.ID,
 		Username:    user.Username,
-		Role:        user.Role.Name,
-		RoleLabel:   user.Role.Label,
-		Permissions: user.Role.PermissionList(),
+		Role:        role.Name,
+		RoleLabel:   role.Label,
+		Permissions: role.PermissionList(),
 		LoginAt:     now.Unix(),
 		Token:       tool.RandomString(32),
 	}

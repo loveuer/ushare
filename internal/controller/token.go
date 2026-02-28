@@ -65,13 +65,7 @@ func (tm *tokenManager) Delete(userID uint, tokenID uint) error {
 // Verify looks up a DB API token and returns a Session if valid.
 func (tm *tokenManager) Verify(rawToken string) (*model.Session, error) {
 	var t model.Token
-	err := db.Default.Session().
-		Where("token = ?", rawToken).
-		Preload("User").
-		Preload("User.Role").
-		First(&t).Error
-
-	if err != nil {
+	if err := db.Default.Session().Where("token = ?", rawToken).First(&t).Error; err != nil {
 		return nil, errors.New("无效的 API Token")
 	}
 
@@ -79,16 +73,30 @@ func (tm *tokenManager) Verify(rawToken string) (*model.Session, error) {
 		return nil, errors.New("API Token 已过期")
 	}
 
+	var user model.User
+	if err := db.Default.Session().First(&user, t.UserID).Error; err != nil {
+		return nil, errors.New("Token 关联用户不存在")
+	}
+
+	if !user.Active {
+		return nil, errors.New("账号已被禁用")
+	}
+
+	var role model.Role
+	if err := db.Default.Session().First(&role, user.RoleID).Error; err != nil {
+		return nil, errors.New("账号角色异常")
+	}
+
 	// Update last_used_at asynchronously
 	now := time.Now()
 	go db.Default.Session().Model(&t).Update("last_used_at", now) //nolint:errcheck
 
 	session := &model.Session{
-		UserID:      t.User.ID,
-		Username:    t.User.Username,
-		Role:        t.User.Role.Name,
-		RoleLabel:   t.User.Role.Label,
-		Permissions: t.User.Role.PermissionList(),
+		UserID:      user.ID,
+		Username:    user.Username,
+		Role:        role.Name,
+		RoleLabel:   role.Label,
+		Permissions: role.PermissionList(),
 		LoginAt:     now.Unix(),
 		Token:       rawToken,
 	}
