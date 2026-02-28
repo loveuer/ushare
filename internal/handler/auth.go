@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/loveuer/nf"
 	"github.com/loveuer/ushare/internal/controller"
@@ -11,8 +12,12 @@ import (
 
 func AuthVerify() nf.HandlerFunc {
 	tokenFn := func(c *nf.Ctx) (token string) {
-		if token = c.Get("Authorization"); token != "" {
-			return
+		if raw := c.Get("Authorization"); raw != "" {
+			// Strip "Bearer " prefix if present
+			if strings.HasPrefix(raw, "Bearer ") {
+				return strings.TrimPrefix(raw, "Bearer ")
+			}
+			return raw
 		}
 		token = c.Cookies("ushare")
 		return
@@ -24,7 +29,18 @@ func AuthVerify() nf.HandlerFunc {
 			return c.Status(http.StatusUnauthorized).JSON(map[string]string{"error": "unauthorized"})
 		}
 
-		session, err := controller.UserManager.Verify(token)
+		var (
+			session *model.Session
+			err     error
+		)
+
+		// API tokens have the "ust_" prefix; session tokens do not.
+		if strings.HasPrefix(token, model.TokenPrefix) {
+			session, err = controller.TokenManager.Verify(token)
+		} else {
+			session, err = controller.UserManager.Verify(token)
+		}
+
 		if err != nil {
 			return c.Status(http.StatusUnauthorized).JSON(map[string]string{"error": "unauthorized", "msg": err.Error()})
 		}

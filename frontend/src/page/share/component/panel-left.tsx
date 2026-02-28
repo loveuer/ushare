@@ -70,6 +70,12 @@ const useUploadStyle = createUseStyles({
         opacity: 0.8,
         '&:hover': {opacity: 1, textDecoration: 'underline'},
     },
+    navLinks: {
+        display: 'flex',
+        justifyContent: 'center',
+        gap: '16px',
+        marginTop: '16px',
+    },
 })
 
 const useShowStyle = createUseStyles({
@@ -190,6 +196,7 @@ const PanelLeftUpload: React.FC<{ set_code: (code:string) => void }> = ({set_cod
     const {file, setFile} = useStore()
     const {uploadFile, progress, loading} = useFileUpload();
     const [isAdmin, setIsAdmin] = useState(false);
+    const [hasTokenPerm, setHasTokenPerm] = useState(false);
 
     useEffect(() => {
         fetch('/api/uauth/me').then(async res => {
@@ -197,6 +204,7 @@ const PanelLeftUpload: React.FC<{ set_code: (code:string) => void }> = ({set_cod
                 const json = await res.json();
                 const perms: string[] = json.data?.permissions ?? [];
                 setIsAdmin(perms.includes('user_manage'));
+                setHasTokenPerm(perms.includes('token_manage'));
             }
         }).catch(() => {});
     }, []);
@@ -248,6 +256,9 @@ const PanelLeftUpload: React.FC<{ set_code: (code:string) => void }> = ({set_cod
             }
             {isAdmin && (
                 <a href="/admin" className={style.adminLink}>管理控制台</a>
+            )}
+            {hasTokenPerm && (
+                <a href="/self" className={style.adminLink}>个人中心 / API Token</a>
             )}
         </div>
     </div>

@@ -48,7 +48,7 @@ func main() {
 	}
 	log.Debug("main: db initialized at %s", dbPath)
 
-	if err := db.Default.Migrate(&model.Role{}, &model.User{}); err != nil {
+	if err := db.Default.Migrate(&model.Role{}, &model.User{}, &model.Token{}); err != nil {
 		log.Fatal("main: db migrate failed: %s", err.Error())
 	}
 

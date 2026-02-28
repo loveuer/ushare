@@ -50,6 +50,17 @@ func Start(ctx context.Context) <-chan struct{} {
 		api.Get("/roles", handler.AuthVerify(), handler.AuthPermission(model.PermUserManage), handler.AdminListRoles())
 	}
 
+	// Token management
+	{
+		api := app.Group("/api/token")
+		api.Get("", handler.AuthVerify(), handler.AuthPermission(model.PermTokenManage), handler.TokenList())
+		api.Post("", handler.AuthVerify(), handler.AuthPermission(model.PermTokenManage), handler.TokenCreate())
+		api.Delete("", handler.AuthVerify(), handler.AuthPermission(model.PermTokenManage), handler.TokenDelete())
+	}
+
+	// API v1 - token-authenticated file upload
+	app.Put("/api/v1/upload/:filename", handler.AuthVerify(), handler.AuthPermission(model.PermUpload), handler.ShareAPIUpload())
+
 	// Frontend static files
 	app.Use(handler.ServeFrontendMiddleware())
 

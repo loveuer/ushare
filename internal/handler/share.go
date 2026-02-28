@@ -2,6 +2,11 @@ package handler
 
 import (
 	"fmt"
+	"net/http"
+	"os"
+	"regexp"
+	"strings"
+
 	"github.com/loveuer/nf"
 	"github.com/loveuer/nf/nft/log"
 	"github.com/loveuer/ushare/internal/controller"
@@ -10,10 +15,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
-	"net/http"
-	"os"
-	"regexp"
-	"strings"
 )
 
 func Fetch() nf.HandlerFunc {
@@ -114,5 +115,38 @@ func ShareUpload() nf.HandlerFunc {
 		}
 
 		return c.Status(http.StatusOK).JSON(map[string]any{"size": total, "cursor": cursor})
+	}
+}
+
+// ShareAPIUpload handles one-step file upload via API token.
+// PUT /api/v1/upload/:filename
+// Accepts the raw file body and Content-Length header, returns the download code.
+func ShareAPIUpload() nf.HandlerFunc {
+	return func(c *nf.Ctx) error {
+		filename := strings.TrimSpace(c.Param("filename"))
+		if filename == "" {
+			return c.Status(http.StatusBadRequest).JSON(map[string]string{"msg": "filename required"})
+		}
+
+		size, err := cast.ToInt64E(c.Request.ContentLength)
+		if err != nil || size <= 0 {
+			return c.Status(http.StatusBadRequest).JSON(map[string]string{"msg": "Content-Length header required"})
+		}
+
+		code, err := controller.MetaManager.New(size, filename, c.IP())
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(map[string]string{"msg": "create upload failed"})
+		}
+
+		_, _, err = controller.MetaManager.Write(code, 0, size-1, c.Request.Body)
+		if err != nil {
+			log.Error("handler.ShareAPIUpload: write error: %s", err)
+			return c.Status(http.StatusInternalServerError).JSON(map[string]string{"msg": "upload failed"})
+		}
+
+		return c.Status(http.StatusOK).JSON(map[string]any{
+			"status": 200,
+			"data":   map[string]string{"code": code},
+		})
 	}
 }
