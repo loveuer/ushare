@@ -1,0 +1,90 @@
+run-name: release ushare binaries
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: debian
+    steps:
+      - name: prepare environment
+        uses: actions/checkout@v4
+
+      - name: print info
+        run: |
+          date '+%Y-%m-%dT%H:%M:%S'
+          echo "Tag        = ${{ gitea.ref_name }}"
+          echo "Repository = ${{ gitea.repository }}"
+          echo "Server     = ${{ gitea.server_url }}"
+
+      - name: build frontend
+        run: |
+          docker run --rm \
+            --network host \
+            -v "$(pwd)/frontend":/app/frontend \
+            -w /app/frontend \
+            node:20-alpine \
+            sh -c "npm install -g pnpm --registry=https://registry.npmmirror.com \
+                   && pnpm install --registry=https://registry.npmmirror.com \
+                   && pnpm run build"
+          mkdir -p internal/static/frontend
+          cp -r frontend/dist internal/static/frontend/dist
+
+      - name: build binaries
+        run: |
+          mkdir -p dist
+          docker run --rm \
+            --network host \
+            -v "$(pwd)":/workspace \
+            -w /workspace \
+            -e GOPROXY=https://goproxy.cn,direct \
+            golang:alpine \
+            sh -c "
+              apk add --no-cache git && \
+              go mod download && \
+              for TARGET in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+                OS=\$(echo \$TARGET | cut -d/ -f1)
+                ARCH=\$(echo \$TARGET | cut -d/ -f2)
+                OUTPUT=\"dist/ushare-\${OS}-\${ARCH}\"
+                [ \"\$OS\" = \"windows\" ] && OUTPUT=\"\${OUTPUT}.exe\"
+                echo \">>> Building \${OUTPUT} ...\"
+                CGO_ENABLED=0 GOOS=\$OS GOARCH=\$ARCH \
+                  go build -ldflags '-s -w' -o \$OUTPUT .
+              done
+            "
+          ls -lh dist/
+
+      - name: create release
+        run: |
+          apt-get install -y -qq jq
+
+          TAG="${{ gitea.ref_name }}"
+          SERVER="${{ gitea.server_url }}"
+          REPO="${{ gitea.repository }}"
+          TOKEN="${{ secrets.GITEA_TOKEN }}"
+
+          RESPONSE=$(curl -sf -X POST \
+            "${SERVER}/api/v1/repos/${REPO}/releases" \
+            -H "Authorization: token ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"${TAG}\",\"name\":\"${TAG}\",\"draft\":false,\"prerelease\":false}")
+
+          echo "Release created: $(echo $RESPONSE | jq -r '.id')"
+          echo "RELEASE_ID=$(echo $RESPONSE | jq -r '.id')" >> $GITHUB_ENV
+
+      - name: upload assets
+        run: |
+          SERVER="${{ gitea.server_url }}"
+          REPO="${{ gitea.repository }}"
+          TOKEN="${{ secrets.GITEA_TOKEN }}"
+
+          for FILE in dist/ushare-*; do
+            FILENAME=$(basename "$FILE")
+            echo ">>> Uploading ${FILENAME} ..."
+            curl -sf -X POST \
+              "${SERVER}/api/v1/repos/${REPO}/releases/${RELEASE_ID}/assets?name=${FILENAME}" \
+              -H "Authorization: token ${TOKEN}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"${FILE}"
+          done

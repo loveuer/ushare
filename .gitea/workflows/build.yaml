@@ -1,36 +1,22 @@
-run-name: build ushare
+run-name: build ushare docker image
 on:
   push:
     tags:
       - 'v*'
 
 jobs:
-  build ushare:
+  build:
     runs-on: debian
     steps:
-      - name: prepare enviroment
+      - name: prepare environment
         uses: actions/checkout@v4
 
-      - name: prints info
+      - name: print info
         run: |
           date '+%Y-%m-%dT%H:%M:%S'
           whoami
-          echo "Tag name = ${{ gitea.ref_name }}"
-          pwd & ls -alsh .
+          echo "Tag = ${{ gitea.ref_name }}"
+          pwd && ls -alsh .
 
-      - name: build image by docker build
-        run: docker build -t gitea.loveuer.com/loveuer/build/ushare:${{ gitea.ref_name }} .
-
-      - name: login repository
-        run: echo ${{ secrets.DOCKER_REPOSITORY_PASSWORD }} | docker login --username loveuer --password-stdin gitea.loveuer.com/loveuer
-
-      - name: push image to repository
-        run: docker push gitea.loveuer.com/loveuer/build/ushare:${{ gitea.ref_name }}
-
-  clean:
-    if: always()
-    runs-on: debian
-    steps:
-      - name: clean docker config
-        run: |
-          rm -rf .docker.config.json
+      - name: build docker image
+        run: docker build -t ushare:${{ gitea.ref_name }} .
