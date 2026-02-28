@@ -17,6 +17,8 @@ COPY go.sum /app/go.sum
 RUN go mod download
 COPY main.go /app/main.go
 COPY internal /app/internal
+# 将前端构建产物复制到 go:embed 所需的路径
+COPY --from=frontend-builder /app/frontend/dist /app/internal/static/frontend/dist
 RUN go build -ldflags '-s -w' -o ushare .
 
 # 第三阶段：生成最终镜像
