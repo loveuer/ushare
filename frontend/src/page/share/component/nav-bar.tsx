@@ -8,12 +8,12 @@ const useStyle = createUseStyles({
         justifyContent: 'space-between',
         padding: '0 24px',
         height: '48px',
-        backgroundColor: '#2c9678',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+        backgroundColor: '#e3f2fd',
+        borderBottom: '1px solid rgba(44,150,120,0.2)',
         flexShrink: 0,
     },
     brand: {
-        color: 'white',
+        color: '#2c9678',
         fontWeight: 700,
         fontSize: '18px',
         letterSpacing: '1px',
@@ -25,19 +25,18 @@ const useStyle = createUseStyles({
         alignItems: 'center',
     },
     link: {
-        color: 'rgba(255,255,255,0.9)',
+        color: '#2c9678',
         fontSize: '13px',
         textDecoration: 'none',
         padding: '5px 12px',
         borderRadius: '4px',
         transition: 'background-color 0.2s',
         '&:hover': {
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            color: 'white',
+            backgroundColor: 'rgba(44,150,120,0.1)',
         },
     },
     divider: {
-        color: 'rgba(255,255,255,0.4)',
+        color: 'rgba(44,150,120,0.3)',
         fontSize: '13px',
     },
 });
