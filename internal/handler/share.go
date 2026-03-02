@@ -10,35 +10,26 @@ import (
 	"github.com/loveuer/nf"
 	"github.com/loveuer/nf/nft/log"
 	"github.com/loveuer/ushare/internal/controller"
-	"github.com/loveuer/ushare/internal/model"
 	"github.com/loveuer/ushare/internal/opt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
-	"github.com/spf13/viper"
 )
 
 func Fetch() nf.HandlerFunc {
 	return func(c *nf.Ctx) error {
 		code := c.Param("code")
 		log.Debug("handler.Fetch: code = %s", code)
-		info := new(model.Meta)
-		_, err := os.Stat(opt.MetaPath(code))
-		if err != nil {
+
+		if _, err := os.Stat(opt.MetaPath(code)); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				return c.Status(http.StatusNotFound).JSON(map[string]string{"msg": "文件不存在"})
 			}
-
 			return c.SendStatus(http.StatusInternalServerError)
 		}
 
-		viper.SetConfigFile(opt.MetaPath(code))
-		viper.SetConfigType("env")
-		if err = viper.ReadInConfig(); err != nil {
-			return c.SendStatus(http.StatusInternalServerError)
-		}
-
-		if err = viper.Unmarshal(info); err != nil {
-			return c.SendStatus(http.StatusInternalServerError)
+		info, err := controller.MetaManager.CheckAndIncrDownload(code)
+		if err != nil {
+			return c.Status(http.StatusGone).JSON(map[string]string{"msg": err.Error()})
 		}
 
 		c.SetHeader("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, info.Filename))
@@ -60,7 +51,21 @@ func ShareNew() nf.HandlerFunc {
 			return c.Status(http.StatusBadRequest).JSON(map[string]string{"msg": "miss header: " + opt.HeaderSize})
 		}
 
-		code, err := controller.MetaManager.New(size, filename, c.IP())
+		maxDownloads := opt.DefaultMaxDownloads
+		if v := c.Get(opt.HeaderMaxDownload); v != "" {
+			if n, err := cast.ToIntE(v); err == nil && n >= 0 {
+				maxDownloads = n
+			}
+		}
+
+		expiresIn := int64(opt.DefaultExpiresIn)
+		if v := c.Get(opt.HeaderExpiresIn); v != "" {
+			if n, err := cast.ToInt64E(v); err == nil && n >= opt.MinExpiresIn {
+				expiresIn = n
+			}
+		}
+
+		code, err := controller.MetaManager.New(size, filename, c.IP(), maxDownloads, expiresIn)
 		if err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(map[string]string{"msg": ""})
 		}
@@ -120,7 +125,7 @@ func ShareUpload() nf.HandlerFunc {
 
 // ShareAPIUpload handles one-step file upload via API token.
 // PUT /api/v1/upload/:filename
-// Accepts the raw file body and Content-Length header, returns the download code.
+// Optional headers: X-Max-Downloads, X-Expires-In (seconds).
 func ShareAPIUpload() nf.HandlerFunc {
 	return func(c *nf.Ctx) error {
 		filename := strings.TrimSpace(c.Param("filename"))
@@ -133,7 +138,21 @@ func ShareAPIUpload() nf.HandlerFunc {
 			return c.Status(http.StatusBadRequest).JSON(map[string]string{"msg": "Content-Length header required"})
 		}
 
-		code, err := controller.MetaManager.New(size, filename, c.IP())
+		maxDownloads := opt.DefaultMaxDownloads
+		if v := c.Get(opt.HeaderMaxDownload); v != "" {
+			if n, err := cast.ToIntE(v); err == nil && n >= 0 {
+				maxDownloads = n
+			}
+		}
+
+		expiresIn := int64(opt.DefaultExpiresIn)
+		if v := c.Get(opt.HeaderExpiresIn); v != "" {
+			if n, err := cast.ToInt64E(v); err == nil && n >= opt.MinExpiresIn {
+				expiresIn = n
+			}
+		}
+
+		code, err := controller.MetaManager.New(size, filename, c.IP(), maxDownloads, expiresIn)
 		if err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(map[string]string{"msg": "create upload failed"})
 		}

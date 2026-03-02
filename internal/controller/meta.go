@@ -3,34 +3,38 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/loveuer/nf/nft/log"
-	"github.com/loveuer/ushare/internal/model"
-	"github.com/loveuer/ushare/internal/opt"
-	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/spf13/viper"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/loveuer/nf/nft/log"
+	"github.com/loveuer/ushare/internal/model"
+	"github.com/loveuer/ushare/internal/opt"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type metaInfo struct {
-	f      *os.File
-	name   string
-	create time.Time
-	last   time.Time
-	size   int64
-	cursor int64
-	user   string
+	f            *os.File
+	name         string
+	create       time.Time
+	last         time.Time
+	size         int64
+	cursor       int64
+	user         string
+	maxDownloads int
+	expiresAt    int64
 }
 
 func (m *metaInfo) generateMeta(code string) error {
-	content := fmt.Sprintf("filename=%s\ncreated_at=%d\nsize=%d\nuploader=%s",
-		m.name, m.create.UnixMilli(), m.size, m.user,
+	content := fmt.Sprintf(
+		"filename=%s\ncreated_at=%d\nsize=%d\nuploader=%s\nmax_downloads=%d\nexpires_at=%d\ndownloads=0",
+		m.name, m.create.UnixMilli(), m.size, m.user, m.maxDownloads, m.expiresAt,
 	)
-
 	return os.WriteFile(opt.MetaPath(code), []byte(content), 0644)
 }
 
@@ -46,8 +50,19 @@ var (
 
 const letters = "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-func (m *meta) New(size int64, filename, ip string) (string, error) {
+// New creates a new upload session.
+// maxDownloads: 0 = unlimited; expiresIn: seconds from now (minimum opt.MinExpiresIn).
+func (m *meta) New(size int64, filename, ip string, maxDownloads int, expiresIn int64) (string, error) {
 	now := time.Now()
+
+	if expiresIn < opt.MinExpiresIn {
+		expiresIn = opt.DefaultExpiresIn
+	}
+
+	if maxDownloads < 0 {
+		maxDownloads = 0
+	}
+
 	code, err := gonanoid.Generate(letters, opt.CodeLength)
 	if err != nil {
 		return "", err
@@ -66,7 +81,17 @@ func (m *meta) New(size int64, filename, ip string) (string, error) {
 	m.Lock()
 	defer m.Unlock()
 
-	m.m[code] = &metaInfo{f: f, name: filename, last: now, size: size, cursor: 0, create: now, user: ip}
+	m.m[code] = &metaInfo{
+		f:            f,
+		name:         filename,
+		last:         now,
+		size:         size,
+		cursor:       0,
+		create:       now,
+		user:         ip,
+		maxDownloads: maxDownloads,
+		expiresAt:    now.Unix() + expiresIn,
+	}
 
 	return code, nil
 }
@@ -100,6 +125,67 @@ func (m *meta) Write(code string, start, end int64, reader io.Reader) (total, cu
 	return total, cursor, nil
 }
 
+// CheckAndIncrDownload reads the meta file, validates expiry and download limit,
+// increments the download counter, and writes the meta file back.
+// Returns the meta on success, or an error if the file is unavailable.
+func (m *meta) CheckAndIncrDownload(code string) (*model.Meta, error) {
+	m.Lock()
+	defer m.Unlock()
+
+	metaPath := opt.MetaPath(code)
+
+	v := viper.New()
+	v.SetConfigFile(metaPath)
+	v.SetConfigType("env")
+	if err := v.ReadInConfig(); err != nil {
+		return nil, errors.New("文件不存在或已过期")
+	}
+
+	info := new(model.Meta)
+	if err := v.Unmarshal(info); err != nil {
+		return nil, errors.New("文件元数据损坏")
+	}
+
+	now := time.Now().Unix()
+
+	// Check expiry
+	if info.ExpiresAt > 0 && now > info.ExpiresAt {
+		// Clean up expired files
+		go func() {
+			_ = os.RemoveAll(opt.FilePath(code))
+			_ = os.RemoveAll(metaPath)
+		}()
+		return nil, errors.New("文件已过期")
+	}
+
+	// Check download limit
+	if info.MaxDownloads > 0 && info.Downloads >= info.MaxDownloads {
+		return nil, errors.New("文件下载次数已达上限")
+	}
+
+	// Increment downloads and write back
+	info.Downloads++
+	content := fmt.Sprintf(
+		"filename=%s\ncreated_at=%d\nsize=%d\nuploader=%s\nmax_downloads=%d\nexpires_at=%d\ndownloads=%d",
+		info.Filename, info.CreatedAt, info.Size, info.Uploader,
+		info.MaxDownloads, info.ExpiresAt, info.Downloads,
+	)
+	if err := os.WriteFile(metaPath, []byte(content), 0644); err != nil {
+		log.Warn("meta.CheckAndIncrDownload: write back failed: %s", err.Error())
+	}
+
+	// If this was the last allowed download, clean up after serving
+	if info.MaxDownloads > 0 && info.Downloads >= info.MaxDownloads {
+		go func() {
+			time.Sleep(5 * time.Second)
+			_ = os.RemoveAll(opt.FilePath(code))
+			_ = os.RemoveAll(metaPath)
+		}()
+	}
+
+	return info, nil
+}
+
 func (m *meta) Start(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
 	m.ctx = ctx
@@ -108,7 +194,7 @@ func (m *meta) Start(ctx context.Context) {
 		log.Fatal("controller.MetaManager.Start: mkdir datapath failed, path = %s, err = %s", opt.Cfg.DataPath, err.Error())
 	}
 
-	// 清理 2 分钟内没有继续上传的 part
+	// Clean uploads with no activity for 2 minutes
 	go func() {
 		for {
 			select {
@@ -133,7 +219,7 @@ func (m *meta) Start(ctx context.Context) {
 		}
 	}()
 
-	// 清理一天前的文件
+	// Clean expired files by walking the data directory
 	go func() {
 		if opt.Cfg.CleanInterval <= 0 {
 			log.Warn("meta.Clean: no clean interval set, plz clean manual!!!")
@@ -148,12 +234,10 @@ func (m *meta) Start(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case now := <-ticker.C:
-				//log.Debug("meta.Clean: 开始清理过期文件 = %v", duration)
 				_ = filepath.Walk(opt.Cfg.DataPath, func(path string, info os.FileInfo, err error) error {
 					if info == nil {
 						return nil
 					}
-
 					if info.IsDir() {
 						return nil
 					}
@@ -163,36 +247,33 @@ func (m *meta) Start(ctx context.Context) {
 						return nil
 					}
 
-					viper.SetConfigFile(path)
-					viper.SetConfigType("env")
-					if err = viper.ReadInConfig(); err != nil {
-						// todo log
+					v := viper.New()
+					v.SetConfigFile(path)
+					v.SetConfigType("env")
+					if err = v.ReadInConfig(); err != nil {
 						return nil
 					}
 
 					mi := new(model.Meta)
-
-					if err = viper.Unmarshal(mi); err != nil {
-						// todo log
+					if err = v.Unmarshal(mi); err != nil {
 						return nil
 					}
 
 					code := strings.TrimPrefix(name, ".meta.")
 
+					// Remove if past explicit expiry
+					if mi.ExpiresAt > 0 && now.Unix() > mi.ExpiresAt {
+						log.Debug("controller.meta: file expired, code = %s", code)
+						_ = os.RemoveAll(opt.FilePath(code))
+						_ = os.RemoveAll(path)
+						return nil
+					}
+
+					// Remove if past global clean interval
 					if now.Sub(time.UnixMilli(mi.CreatedAt)) > duration {
-
-						log.Debug("controller.meta: file out of date, code = %s, user_key = %s", code, mi.Uploader)
-
-						if err = os.RemoveAll(opt.FilePath(code)); err != nil {
-							log.Warn("meta.Clean: remove file failed, file = %s, err = %s", opt.FilePath(code), err.Error())
-						}
-						if err = os.RemoveAll(path); err != nil {
-							log.Warn("meta.Clean: remove file failed, file = %s, err = %s", path, err.Error())
-						}
-
-						m.Lock()
-						delete(m.m, code)
-						m.Unlock()
+						log.Debug("controller.meta: file out of date, code = %s", code)
+						_ = os.RemoveAll(opt.FilePath(code))
+						_ = os.RemoveAll(path)
 					}
 
 					return nil

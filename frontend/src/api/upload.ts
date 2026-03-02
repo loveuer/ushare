@@ -1,5 +1,9 @@
 import { useState } from 'react';
 
+export interface UploadSettings {
+    maxDownloads: number;  // 0 = unlimited
+    expiresIn: number;     // seconds
+}
 
 interface UploadRes {
     code: string
@@ -10,10 +14,13 @@ export const useFileUpload = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const uploadFile = async (file: File): Promise<string> => {
+    const uploadFile = async (file: File, settings?: UploadSettings): Promise<string> => {
         setLoading(true);
         setError(null);
         setProgress(0);
+
+        const maxDownloads = settings?.maxDownloads ?? 3;
+        const expiresIn    = settings?.expiresIn    ?? 28800;
 
         try {
             const url = `/api/ushare/${file.name}`;
@@ -21,7 +28,11 @@ export const useFileUpload = () => {
             // 1. 初始化上传
             const res1 = await fetch(url, {
                 method: "PUT",
-                headers: {"X-File-Size": file.size.toString()}
+                headers: {
+                    "X-File-Size":      file.size.toString(),
+                    "X-Max-Downloads":  maxDownloads.toString(),
+                    "X-Expires-In":     expiresIn.toString(),
+                }
             });
 
             if (!res1.ok) {
@@ -30,7 +41,6 @@ export const useFileUpload = () => {
                     window.location.href = "/login?next=/share"
                     return ""
                 }
-
                 throw new Error("上传失败<1>");
             }
 
@@ -64,15 +74,13 @@ export const useFileUpload = () => {
                     throw new Error(`上传失败<3>: ${err}`);
                 }
 
-                // 更新进度
-                // const currentProgress = Number(((chunkIndex + 1) / totalChunks * 100).toFixed(2)); // 小数
-                const currentProgress = Math.round(((chunkIndex + 1) / totalChunks) * 100); // 整数 0-100
+                const currentProgress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
                 setProgress(currentProgress);
             }
 
             return code;
         } catch (err) {
-            throw err; // 将错误继续抛出以便组件处理
+            throw err;
         } finally {
             setLoading(false);
         }

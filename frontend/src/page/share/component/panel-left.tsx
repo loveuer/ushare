@@ -3,7 +3,7 @@ import {UButton} from "../../../component/button/u-button.tsx";
 import React, {useState} from "react";
 import {useStore} from "../../../store/share.ts";
 import {message} from "../../../hook/message/u-message.tsx";
-import {useFileUpload} from "../../../api/upload.ts";
+import {useFileUpload, UploadSettings} from "../../../api/upload.ts";
 
 const useUploadStyle = createUseStyles({
     container: {
@@ -60,6 +60,66 @@ const useUploadStyle = createUseStyles({
         cursor: 'pointer',
         '&:hover': {}
     },
+    // Advanced settings
+    advToggle: {
+        marginTop: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        cursor: 'pointer',
+        color: '#2c9678',
+        fontSize: '13px',
+        userSelect: 'none',
+        opacity: 0.75,
+        '&:hover': {opacity: 1},
+    },
+    advPanel: {
+        marginTop: '12px',
+        padding: '14px 16px',
+        backgroundColor: 'rgba(255,255,255,0.5)',
+        borderRadius: '10px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+    },
+    advRow: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+    },
+    advLabel: {
+        color: '#2c9678',
+        fontSize: '13px',
+        fontWeight: 500,
+        flexShrink: 0,
+    },
+    advInput: {
+        width: '80px',
+        padding: '5px 8px',
+        borderRadius: '5px',
+        border: '1px solid rgba(44,150,120,0.4)',
+        fontSize: '13px',
+        textAlign: 'center',
+        outline: 'none',
+        backgroundColor: 'rgba(255,255,255,0.8)',
+        '&:focus': {borderColor: '#2c9678'},
+    },
+    advSelect: {
+        padding: '5px 8px',
+        borderRadius: '5px',
+        border: '1px solid rgba(44,150,120,0.4)',
+        fontSize: '13px',
+        outline: 'none',
+        backgroundColor: 'rgba(255,255,255,0.8)',
+        color: '#333',
+        cursor: 'pointer',
+        '&:focus': {borderColor: '#2c9678'},
+    },
+    advHint: {
+        fontSize: '11px',
+        color: '#888',
+    },
 })
 
 const useShowStyle = createUseStyles({
@@ -115,7 +175,7 @@ const useShowStyle = createUseStyles({
         height: "24px",
         cursor: "pointer",
         "&:hover": {
-            boxShadow:  "20px 20px 60px #fff, -20px -20px 60px #fff",
+            boxShadow: "20px 20px 60px #fff, -20px -20px 60px #fff",
         },
     },
     codeWrapper: {
@@ -163,22 +223,44 @@ const useShowStyle = createUseStyles({
             fontSize: "12px",
         },
     },
+    metaInfo: {
+        fontSize: '12px',
+        color: '#555',
+        marginTop: '10px',
+        display: 'flex',
+        gap: '16px',
+        flexWrap: 'wrap',
+    },
+    metaItem: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+    },
 });
 
+// Expiry options (hours) shown in the dropdown
+const EXPIRY_OPTIONS = [1, 2, 4, 8, 12, 24];
+
 export const PanelLeft = () => {
-    const [code, set_code] = useState("")
+    const [code, setCode] = useState("")
+    const [settings, setSettings] = useState<UploadSettings>({maxDownloads: 3, expiresIn: 8 * 3600})
 
     if (code) {
-        return <PanelLeftShow code={code} set_code={set_code} />
+        return <PanelLeftShow code={code} set_code={setCode} settings={settings}/>
     }
 
-    return <PanelLeftUpload  set_code={set_code}/>
+    return <PanelLeftUpload set_code={setCode} settings={settings} setSettings={setSettings}/>
 };
 
-const PanelLeftUpload: React.FC<{ set_code: (code:string) => void }> = ({set_code}) => {
+const PanelLeftUpload: React.FC<{
+    set_code: (code: string) => void;
+    settings: UploadSettings;
+    setSettings: (s: UploadSettings) => void;
+}> = ({set_code, settings, setSettings}) => {
     const style = useUploadStyle()
     const {file, setFile} = useStore()
     const {uploadFile, progress, loading} = useFileUpload();
+    const [showAdv, setShowAdv] = useState(false);
 
     function onFileSelect() {
         // @ts-expect-error no types for direct DOM query
@@ -190,11 +272,8 @@ const PanelLeftUpload: React.FC<{ set_code: (code:string) => void }> = ({set_cod
     }
 
     async function onFileUpload() {
-        if (!file) {
-            return
-        }
-
-        const code = await uploadFile(file)
+        if (!file) return;
+        const code = await uploadFile(file, settings)
         set_code(code)
     }
 
@@ -202,34 +281,76 @@ const PanelLeftUpload: React.FC<{ set_code: (code:string) => void }> = ({set_cod
         setFile(null)
     }
 
+    function onMaxDownloadsChange(e: React.ChangeEvent<HTMLInputElement>) {
+        let v = parseInt(e.target.value, 10);
+        if (isNaN(v) || v < 0) v = 0;
+        if (v > 999) v = 999;
+        setSettings({...settings, maxDownloads: v});
+    }
+
+    function onExpiryChange(e: React.ChangeEvent<HTMLSelectElement>) {
+        setSettings({...settings, expiresIn: parseInt(e.target.value, 10)});
+    }
+
     return <div className={style.container}>
         <div className={style.form}>
             <h2 className={style.title}>上传文件</h2>
-            {
-                !file && !loading &&
-                <UButton onClick={onFileSelect}>选择文件</UButton>
-            }
-            {
-                file && !loading &&
-                <UButton onClick={onFileUpload}>上传文件</UButton>
-            }
-            {
-                loading &&
-                <UButton process={progress} loading={loading}>上传中</UButton>
-            }
+            {!file && !loading && <UButton onClick={onFileSelect}>选择文件</UButton>}
+            {file && !loading && <UButton onClick={onFileUpload}>上传文件</UButton>}
+            {loading && <UButton process={progress} loading={loading}>上传中</UButton>}
             <input type="file" className={style.file} id="real-file-input" onChange={onFileChange}/>
-            {
-                file &&
+            {file && (
                 <div className={style.preview}>
                     <div className={style.clean} onClick={onFileClean}>×</div>
                     <div className={style.name}>{file.name}</div>
                 </div>
-            }
+            )}
+
+            {/* Advanced settings toggle */}
+            <div className={style.advToggle} onClick={() => setShowAdv(v => !v)}>
+                <span>{showAdv ? '▾' : '▸'}</span>
+                <span>高级设置</span>
+            </div>
+
+            {showAdv && (
+                <div className={style.advPanel}>
+                    <div className={style.advRow}>
+                        <span className={style.advLabel}>下载次数限制</span>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <input
+                                type="number"
+                                min={0}
+                                max={999}
+                                className={style.advInput}
+                                value={settings.maxDownloads}
+                                onChange={onMaxDownloadsChange}
+                            />
+                            <span className={style.advHint}>0 = 不限制</span>
+                        </div>
+                    </div>
+                    <div className={style.advRow}>
+                        <span className={style.advLabel}>过期时间</span>
+                        <select
+                            className={style.advSelect}
+                            value={settings.expiresIn}
+                            onChange={onExpiryChange}
+                        >
+                            {EXPIRY_OPTIONS.map(h => (
+                                <option key={h} value={h * 3600}>{h} 小时</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            )}
         </div>
     </div>
 }
 
-const PanelLeftShow: React.FC<{ code: string; set_code: (code: string) => void }> = ({ code, set_code }) => {
+const PanelLeftShow: React.FC<{
+    code: string;
+    set_code: (code: string) => void;
+    settings: UploadSettings;
+}> = ({code, set_code, settings}) => {
     const classes = useShowStyle();
 
     const handleCopy = async () => {
@@ -241,6 +362,9 @@ const PanelLeftShow: React.FC<{ code: string; set_code: (code: string) => void }
         }
     };
 
+    const expiryHours = Math.round(settings.expiresIn / 3600);
+    const downloadLimit = settings.maxDownloads === 0 ? '不限' : `${settings.maxDownloads} 次`;
+
     return (
         <div className={classes.container}>
             <div className={classes.form}>
@@ -248,20 +372,21 @@ const PanelLeftShow: React.FC<{ code: string; set_code: (code: string) => void }
                     className={classes.closeButton}
                     onClick={() => set_code('')}
                     aria-label="关闭"
-                >
-                    ×
-                </button>
-                <h2 className={classes.title}>
-                    上传成功!
-                </h2>
+                >×</button>
+                <h2 className={classes.title}>上传成功!</h2>
 
                 <div className={classes.codeWrapper}>
                     <pre className={classes.pre}>
                         <code>{code}</code>
                         <button className={classes.copyButton} onClick={handleCopy}>
-                        一键复制
-                    </button>
+                            一键复制
+                        </button>
                     </pre>
+                </div>
+
+                <div className={classes.metaInfo}>
+                    <span className={classes.metaItem}>下载限制：{downloadLimit}</span>
+                    <span className={classes.metaItem}>有效期：{expiryHours} 小时</span>
                 </div>
             </div>
         </div>
