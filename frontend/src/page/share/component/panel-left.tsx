@@ -1,6 +1,6 @@
 import {createUseStyles} from "react-jss";
 import {UButton} from "../../../component/button/u-button.tsx";
-import React, {useEffect, useState} from "react";
+import React, {useState} from "react";
 import {useStore} from "../../../store/share.ts";
 import {message} from "../../../hook/message/u-message.tsx";
 import {useFileUpload} from "../../../api/upload.ts";
@@ -59,22 +59,6 @@ const useUploadStyle = createUseStyles({
         borderRadius: '50%',
         cursor: 'pointer',
         '&:hover': {}
-    },
-    adminLink: {
-        display: 'block',
-        textAlign: 'center',
-        marginTop: '16px',
-        color: '#2c9678',
-        fontSize: '12px',
-        textDecoration: 'none',
-        opacity: 0.8,
-        '&:hover': {opacity: 1, textDecoration: 'underline'},
-    },
-    navLinks: {
-        display: 'flex',
-        justifyContent: 'center',
-        gap: '16px',
-        marginTop: '16px',
     },
 })
 
@@ -195,22 +179,9 @@ const PanelLeftUpload: React.FC<{ set_code: (code:string) => void }> = ({set_cod
     const style = useUploadStyle()
     const {file, setFile} = useStore()
     const {uploadFile, progress, loading} = useFileUpload();
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [hasTokenPerm, setHasTokenPerm] = useState(false);
-
-    useEffect(() => {
-        fetch('/api/uauth/me').then(async res => {
-            if (res.ok) {
-                const json = await res.json();
-                const perms: string[] = json.data?.permissions ?? [];
-                setIsAdmin(perms.includes('user_manage'));
-                setHasTokenPerm(perms.includes('token_manage'));
-            }
-        }).catch(() => {});
-    }, []);
 
     function onFileSelect() {
-        // @ts-ignore
+        // @ts-expect-error no types for direct DOM query
         document.querySelector('#real-file-input').click();
     }
 
@@ -254,12 +225,6 @@ const PanelLeftUpload: React.FC<{ set_code: (code:string) => void }> = ({set_cod
                     <div className={style.name}>{file.name}</div>
                 </div>
             }
-            {isAdmin && (
-                <a href="/admin" className={style.adminLink}>管理控制台</a>
-            )}
-            {hasTokenPerm && (
-                <a href="/self" className={style.adminLink}>个人中心 / API Token</a>
-            )}
         </div>
     </div>
 }
@@ -278,7 +243,6 @@ const PanelLeftShow: React.FC<{ code: string; set_code: (code: string) => void }
 
     return (
         <div className={classes.container}>
-
             <div className={classes.form}>
                 <button
                     className={classes.closeButton}
